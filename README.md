@@ -3,6 +3,8 @@ Estimate
 
 An Estimation board for teams. non-persistent memory based. Fast and simple.
 
+![Screenshot-2021-04-16_14-49-23](https://user-images.githubusercontent.com/54403/115026594-f9fec700-9ec2-11eb-9680-ed52ae5c97d5.png)
+
 ## How it works
 
 - A ruby server with Sinatra
