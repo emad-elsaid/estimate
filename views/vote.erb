@@ -1,0 +1,24 @@
+<section class="section">
+  <div class="container">
+    <h1 class="title">
+      Vote
+    </h1>
+
+    <div class="columns is-multiline">
+
+      <% board[:options].each do |option| %>
+        <div class="column is-one-third">
+          <div class="card">
+            <div class="card-content has-text-centered">
+              <form action="/boards/<%= board[:id] %>/vote" method="POST">
+                <input name="vote" type="hidden" value="<%= option %>"/>
+                <button class="button is-ghost" style="font-size: 5em;" type="submit"><%= option %></button>
+              </form>
+            </div>
+          </div>
+        </div>
+      <% end %>
+
+    </div>
+  </div>
+</section>

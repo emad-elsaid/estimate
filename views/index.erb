@@ -1,0 +1,22 @@
+<section class="section">
+  <div class="container">
+
+    <form action="/boards/<%= board[:id] %>" method="POST">
+
+      <div class="field">
+        <label class="label" for="columns">Options</label>
+        <div class="control">
+          <textarea class="textarea" placeholder="Each line an option..." name="options" id="columns"><%=h board[:options].join("\n") %></textarea>
+        </div>
+      </div>
+
+      <div class="field">
+        <div class="control">
+          <button class="button is-link" type="submit">Create</button>
+        </div>
+      </div>
+
+    </form>
+
+  </div>
+</section>

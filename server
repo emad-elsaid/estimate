@@ -1,0 +1,113 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require 'bundler'
+
+Bundler.require
+require_relative 'helpers'
+
+set :port, 3000
+disable :strict_paths
+
+boards = {}
+
+get '/' do
+  ensure_user
+
+  defaults = {
+    options: [1, 2, 3, 5, 8],
+  }
+
+  erb :index, locals: { board: defaults }
+end
+
+get '/username' do
+  erb :username
+end
+
+post '/username' do
+  cookies[:username] = params[:username]
+  cookies[:userid] = SecureRandom.uuid unless cookies.key?(:userid)
+
+  redirect cookies[:back] || '/'
+end
+
+get '/boards/:board' do
+  userid = ensure_user
+  board = ensure_board(boards)
+
+  redirect "/boards/#{board[:id]}/vote" unless board[:votes].key?(cookies[:username]) || board[:userid] == userid
+
+  erb :board, locals: {
+    board: board,
+    userid: userid,
+  }
+end
+
+post '/boards' do
+  userid = ensure_user
+  id = SecureRandom.uuid
+  board = params.slice(:options).merge(id: id, userid: userid, votes: {}, updated_at: Time.now.to_i)
+  board[:options] = board[:options].lines.map(&:strip).reject(&:empty?)
+  boards[id] = board
+
+  redirect "/boards/#{id}"
+end
+
+get '/boards/:board/edit' do
+  userid = ensure_user
+  board = ensure_board(boards)
+  redirect "/boards/#{board[:id]}" unless board[:userid] == userid
+
+  erb :index, locals: { board: board }
+end
+
+post '/boards/:board' do
+  userid = ensure_user
+  board = ensure_board(boards)
+  redirect "/boards/#{board[:id]}" unless board[:userid] == userid
+
+  board.merge!(params.slice(:options))
+  board[:options] = board[:options].lines.map(&:strip).reject(&:empty?)
+  board[:updated_at] = Time.now.to_i
+
+  redirect "boards/#{board[:id]}"
+end
+
+get '/boards/:board/reset' do
+  userid = ensure_user
+  board = ensure_board(boards)
+  redirect "/boards/#{board[:id]}" unless board[:userid] == userid
+
+  board[:votes] = {}
+  board[:updated_at] = Time.now.to_i
+
+  redirect "boards/#{board[:id]}"
+end
+
+get '/boards/:board/vote' do
+  ensure_user
+  board = ensure_board(boards)
+
+  erb :vote, locals: { board: board }
+end
+
+post '/boards/:board/vote' do
+  ensure_user
+  board = ensure_board(boards)
+  redirect "boards/#{board[:id]}/bote" unless board[:options].include? params[:vote]
+
+  board[:votes][cookies[:username]] = params[:vote]
+  board[:updated_at] = Time.now.to_i
+
+  redirect "boards/#{board[:id]}"
+end
+
+get '/boards/:board/check/:updated_at' do
+  ensure_user
+  board = ensure_board(boards)
+
+  headers['refresh'] = '1'
+  reload = params[:updated_at].to_i < board[:updated_at]
+  erb :check, layout: false, locals: { board: board, reload: reload }
+end

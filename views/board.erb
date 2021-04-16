@@ -1,0 +1,38 @@
+<div class="container">
+
+  <iframe frameborder="0" src="/boards/<%= board[:id] %>/check/<%= board[:updated_at] %>" style="width:0;height:0;display:absolute;"></iframe>
+
+  <div class="section">
+    <p>
+      <% if board[:userid]==userid %>
+        <a class="button" href="/boards/<%= board[:id] %>/edit">✏️ Edit</a>
+        <a class="button is-link is-light" href="/boards/<%= board[:id] %>/reset" title="This will clear votes and ask users to vote again">🗋 Request New Votes</a>
+      <% end %>
+      <a class="button is-info is-light" href="/boards/<%= board[:id] %>/vote">Vote</a>
+    </p>
+  </div>
+
+
+  <% if board[:votes].empty?  %>
+    <div class="notification">
+      No votes yet. Waiting for the team to vote...
+    </div>
+  <% end %>
+
+  <div class="columns is-multiline is-centered">
+    <% board[:votes].each do |userid, vote| %>
+      <div class="column is-one-quarter">
+        <div class="card">
+          <div class="card-content has-text-centered">
+            <div class="title" style="font-size: 9em;">
+              <%=h vote %>
+            </div>
+            <div class="subtitle">
+              <%=h userid %>
+            </div>
+          </div>
+        </div>
+      </div>
+    <% end %>
+  </div>
+</div>
