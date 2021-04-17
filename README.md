@@ -1,7 +1,7 @@
 Estimate
 =====
 
-An Estimation board for teams. non-persistent memory based. Fast and simple.
+An Estimation board for teams. non-persistent memory based. Fast and simple. ~100 ruby lines.
 
 ![Screenshot-2021-04-16_19-18-36](https://user-images.githubusercontent.com/54403/115060881-ae5f1400-9ee8-11eb-9386-4c5a782fd958.png)
 
