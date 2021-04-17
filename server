@@ -107,7 +107,9 @@ get '/boards/:board/check/:updated_at' do
   ensure_user
   board = ensure_board(boards)
 
-  headers['refresh'] = '1'
-  reload = params[:updated_at].to_i < board[:updated_at]
-  erb :check, layout: false, locals: { board: board, reload: reload }
+  if params[:updated_at].to_i < board[:updated_at]
+    '<script>top.location.reload()</script>'
+  else
+    [200, { 'Refresh' => '1' }, nil]
+  end
 end
