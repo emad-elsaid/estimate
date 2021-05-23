@@ -5,6 +5,11 @@
       <% unless board[:votes].empty? %>
       <a class="button is-link is-light" href="/boards/<%= board[:id] %>/reset" title="This will clear votes and ask users to vote again">✋ Request New Votes</a>
       <% end %>
+      <% if board[:hidden] %>
+        <a class="button is-info is-light" href="/boards/<%= board[:id] %>/show">👁️ Show Votes</a>
+      <% else %>
+        <a class="button is-info is-light" href="/boards/<%= board[:id] %>/hide">👁️ Hide Votes</a>
+      <% end %>
     <% end %>
     <a class="button is-success is-light" href="/boards/<%= board[:id] %>/vote">🗳️ Vote</a>
   </div>
@@ -18,7 +23,9 @@
     <% else %>
       <h1 class="title">
         🗳️ <%= board[:votes].count %> Votes
-        | <% board[:votes].values.group_by(&:itself).each { |k,v| %> <%= k %> <sub>×<%= v.count %></sub> <% } %>
+        <% unless board[:hidden] %>
+          | <% board[:votes].values.group_by(&:itself).each { |k,v| %> <%= k %> <sub>×<%= v.count %></sub> <% } %>
+        <% end %>
       </h1>
     <% end %>
 
@@ -27,8 +34,12 @@
         <div class="column is-one-quarter">
           <div class="card">
             <div class="card-content has-text-centered">
-              <div class="title" style="font-size: 9em;">
-                <%=h vote %>
+              <div class="title" style="font-size: 9em;<%= 'filter: blur(1rem);' if board[:hidden] %>">
+                <% if board[:hidden] %>
+                  X
+                <% else %>
+                  <%=h vote %>
+                <% end %>
               </div>
               <div class="subtitle">
                 <%=h userid %>

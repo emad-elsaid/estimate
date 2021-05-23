@@ -47,7 +47,9 @@ end
 post '/boards' do
   userid = ensure_user
   id = SecureRandom.uuid
-  board = params.slice(:options).merge(id: id, userid: userid, votes: {}, updated_at: Time.now.to_i)
+  board = params
+            .slice(:options)
+            .merge(id: id, userid: userid, votes: {}, updated_at: Time.now.to_i, hidden: true)
   board[:options] = board[:options].lines.map(&:strip).reject(&:empty?)
   boards[id] = board
 
@@ -80,6 +82,7 @@ get '/boards/:board/reset' do
   redirect "/boards/#{board[:id]}" unless board[:userid] == userid
 
   board[:votes] = {}
+  board[:hidden] = true
   board[:updated_at] = Time.now.to_i
 
   redirect "boards/#{board[:id]}"
@@ -98,6 +101,28 @@ post '/boards/:board/vote' do
   redirect "boards/#{board[:id]}/bote" unless board[:options].include? params[:vote]
 
   board[:votes][cookies[:username]] = params[:vote]
+  board[:updated_at] = Time.now.to_i
+
+  redirect "boards/#{board[:id]}"
+end
+
+get '/boards/:board/show' do
+  userid = ensure_user
+  board = ensure_board(boards)
+  redirect "/boards/#{board[:id]}" unless board[:userid] == userid
+
+  board[:hidden] = false
+  board[:updated_at] = Time.now.to_i
+
+  redirect "boards/#{board[:id]}"
+end
+
+get '/boards/:board/hide' do
+  userid = ensure_user
+  board = ensure_board(boards)
+  redirect "/boards/#{board[:id]}" unless board[:userid] == userid
+
+  board[:hidden] = true
   board[:updated_at] = Time.now.to_i
 
   redirect "boards/#{board[:id]}"
