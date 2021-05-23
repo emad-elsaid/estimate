@@ -2,7 +2,9 @@
   <div class="section">
     <% if board[:userid]==userid %>
       <a class="button" href="/boards/<%= board[:id] %>/edit">✏️ Edit</a>
+      <% unless board[:votes].empty? %>
       <a class="button is-link is-light" href="/boards/<%= board[:id] %>/reset" title="This will clear votes and ask users to vote again">✋ Request New Votes</a>
+      <% end %>
     <% end %>
     <a class="button is-success is-light" href="/boards/<%= board[:id] %>/vote">🗳️ Vote</a>
   </div>
@@ -16,7 +18,7 @@
     <% else %>
       <h1 class="title">
         🗳️ <%= board[:votes].count %> Votes
-        | <% board[:votes].values.group_by(&:to_i).each { |k,v| %> <%= k %> <sub>×<%= v.count %></sub> <% } %>
+        | <% board[:votes].values.group_by(&:itself).each { |k,v| %> <%= k %> <sub>×<%= v.count %></sub> <% } %>
       </h1>
     <% end %>
 
