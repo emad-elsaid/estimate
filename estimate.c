@@ -24,7 +24,7 @@ typedef struct Response {
   void *body;
 } Response;
 
-void root(Response *w, const Request *r) {
+void RootHandler(Response *w, const Request *r) {
   w->body = PAGE;
   w->status = MHD_HTTP_OK;
 }
@@ -47,7 +47,7 @@ void Router(Response *w, const Request *r) {
   bool is_GET = r->method == HTTP_METHOD_GET;
   bool is_POST = r->method == HTTP_METHOD_POST;
 
-  if (is_GET && PathIs(r, "/")) return root(w, r);
+  if (is_GET && PathIs(r, "/")) return RootHandler(w, r);
 }
 
 static enum MHD_Result AccessCallback(void *cls, struct MHD_Connection *connection,
