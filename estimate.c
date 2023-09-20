@@ -6,6 +6,9 @@
 
 #define PAGE "Hello world"
 
+// Data structures
+// ===================================================================
+
 typedef enum HTTP_METHOD {
   HTTP_METHOD_INVALID,
   HTTP_METHOD_GET,
@@ -24,10 +27,14 @@ typedef struct Response {
   void *body;
 } Response;
 
-void RootHandler(Response *w, const Request *r) {
-  w->body = PAGE;
-  w->status = MHD_HTTP_OK;
-}
+typedef char* UserID;
+
+typedef struct Board {
+
+} Board;
+
+// Helpers
+// ===================================================================
 
 Method StringToHTTPMethod(const char *method) {
   if (strcmp(method, "GET") == 0)
@@ -43,12 +50,89 @@ bool PathIs(const Request *r, const char *path) {
   return strcmp(r->path, path) == 0;
 }
 
+void Render(Response *w, const char *path, ...) {
+  // TODO render path with key, value rest of params
+}
+
+char *h(char *input) {
+  // TODO escape input string and return new string
+  return input;
+}
+
+UserID EnsureUser(Response *w, const Request *r) {
+  // TODO if user doesn't exist redirect to /username and return null, if user exist return userID
+  return NULL;
+}
+
+Board *EnsureBoard(Response *w, const Request *r) {
+  // TODO if board ID from request doesn't exist in memory redirect to / and return null, if board exist return it
+  return NULL;
+}
+
+UserID NewUserID() {
+  return NULL;
+}
+
+void CookiesSet(Response *w, const Request *r, char *key, char *value){
+  // TODO write a key/value to cookies
+}
+
+char *CookiesGet(const Request *r, char *key) {
+  // TODO return cookie key value
+  return NULL;
+}
+
+bool CookiesExist(const Request *r, const char *key) {
+  // TODO return true if key exist in request cookies
+  return false;
+}
+
+char *ParamsGet(const Request *r, const char *key) {
+  // TODO get query parameter value for key
+  return NULL;
+}
+
+void Redirect(Response *w, const char *path) {
+  // TODO redirect user to another path
+}
+
+// Handlers
+// ==================================================================
+
+void RootHandler(Response *w, const Request *r) {
+  w->body = PAGE;
+  w->status = MHD_HTTP_OK;
+}
+
+void GetUsernameHandler(Response *w, const Request *r) {
+  Render(w, "username");
+}
+
+void PostUsernameHandler(Response *w, const Request *r) {
+  CookiesSet(w, r, "username", ParamsGet(r, "username"));
+  if (! CookiesExist(r, "userid")) {
+    CookiesSet(w, r, "userid", NewUserID());
+  }
+
+  Redirect(w, CookiesGet(r, "back"));
+}
+
+// Router
+// this is the main router, it inspects the request properties and calls the
+// correct handler function
+// ==============================================================================
+
 void Router(Response *w, const Request *r) {
   bool is_GET = r->method == HTTP_METHOD_GET;
   bool is_POST = r->method == HTTP_METHOD_POST;
 
   if (is_GET && PathIs(r, "/")) return RootHandler(w, r);
+  if (is_GET && PathIs(r, "/username")) return GetUsernameHandler(w, r);
+  if (is_POST && PathIs(r, "/username")) return PostUsernameHandler(w, r);
 }
+
+// Setup to invoke router
+// ==================================================================
 
 static enum MHD_Result AccessCallback(void *cls, struct MHD_Connection *connection,
                                 const char *url, const char *method_str,
