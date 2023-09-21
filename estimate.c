@@ -9,10 +9,10 @@
 // Data structures
 // ===================================================================
 
-typedef enum HTTP_METHOD {
-  HTTP_METHOD_INVALID,
-  HTTP_METHOD_GET,
-  HTTP_METHOD_POST
+typedef enum METHOD {
+  METHOD_INVALID,
+  METHOD_GET,
+  METHOD_POST
 } Method;
 
 typedef int Status;
@@ -38,12 +38,12 @@ typedef struct Board {
 
 Method StringToHTTPMethod(const char *method) {
   if (strcmp(method, "GET") == 0)
-    return HTTP_METHOD_GET;
+    return METHOD_GET;
 
   if (strcmp(method, "POST") == 0)
-    return HTTP_METHOD_POST;
+    return METHOD_POST;
 
-  return HTTP_METHOD_INVALID;
+  return METHOD_INVALID;
 }
 
 bool PathIs(const Request *r, const char *path) {
@@ -123,8 +123,8 @@ void PostUsernameHandler(Response *w, const Request *r) {
 // ==============================================================================
 
 void Router(Response *w, const Request *r) {
-  bool is_GET = r->method == HTTP_METHOD_GET;
-  bool is_POST = r->method == HTTP_METHOD_POST;
+  bool is_GET = r->method == METHOD_GET;
+  bool is_POST = r->method == METHOD_POST;
 
   if (is_GET && PathIs(r, "/")) return RootHandler(w, r);
   if (is_GET && PathIs(r, "/username")) return GetUsernameHandler(w, r);
@@ -142,11 +142,11 @@ static enum MHD_Result AccessCallback(void *cls, struct MHD_Connection *connecti
   Method method = StringToHTTPMethod(method_str);
 
   // unexpected method
-  if (method == HTTP_METHOD_INVALID)
+  if (method == METHOD_INVALID)
     return MHD_NO;
 
   // upload data in a GET!?
-  if (method == HTTP_METHOD_GET && *upload_data_size != 0)
+  if (method == METHOD_GET && *upload_data_size != 0)
     return MHD_NO;
 
   static int dummy;
