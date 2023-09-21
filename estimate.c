@@ -4,8 +4,6 @@
 #include <stdio.h>
 #include <stdbool.h>
 
-#define PAGE "Hello world"
-
 // Data structures
 // ===================================================================
 
@@ -140,7 +138,7 @@ void Redirect(Response *w, char *path) {
 // ==================================================================
 
 void RootHandler(Response *w, const Request *r) {
-  w->body = PAGE;
+  w->body = "Hello world";
   w->status = MHD_HTTP_OK;
 }
 
