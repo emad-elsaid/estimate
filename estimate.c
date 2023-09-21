@@ -294,7 +294,7 @@ int main(int argc, char **argv) {
 
   int port = atoi(argv[1]);
 
-  struct MHD_Daemon *d = MHD_start_daemon(MHD_USE_THREAD_PER_CONNECTION, port, NULL, NULL, &AccessCallback, NULL, MHD_OPTION_END);
+  struct MHD_Daemon *d = MHD_start_daemon(MHD_USE_AUTO_INTERNAL_THREAD, port, NULL, NULL, &AccessCallback, NULL, MHD_OPTION_END);
   if (d == NULL) return 1;
 
   printf("Server started on port %d", port);
