@@ -17,6 +17,12 @@ typedef enum Method {
 
 typedef int Status;
 
+typedef struct Headers {
+  char *key;
+  char *value;
+  struct Headers *next;
+} Header;
+
 typedef struct Request {
   Method method;
   const char *path;
@@ -25,6 +31,7 @@ typedef struct Request {
 typedef struct Response {
   Status status;
   void *body;
+  Header *headers;
 } Response;
 
 typedef char* UserID;
@@ -35,6 +42,32 @@ typedef struct Board {
 
 // Helpers
 // ===================================================================
+
+void WriteHeader(Response *w, char *key, char *value) {
+  Header *h = malloc(sizeof(Header));
+  h->key = key;
+  h->value = value;
+  h->next = w->headers;
+  w->headers = h;
+}
+
+char *FileContent(const char *path) {
+  FILE *f = fopen(path, "r");
+  if(f == NULL){
+    return NULL;
+  }
+
+  fseek(f, 0, SEEK_END);
+  int size = ftell(f);
+  char *content = malloc(size+1);
+
+  fseek(f, 0, SEEK_SET);
+  fread(content, 1, size, f);
+  content[size] = 0;
+  fclose(f);
+
+  return content;
+}
 
 Method String2Method(const char *method) {
   if (strcmp(method, "GET") == 0)
@@ -51,7 +84,11 @@ bool PathIs(const Request *r, const char *path) {
 }
 
 void Render(Response *w, const char *path, ...) {
-  // TODO render path with key, value rest of params
+  char *v = FileContent(path);
+  if ( v == NULL ) return;
+  w->status = MHD_HTTP_OK;
+  WriteHeader(w, "Content-Type", "text/html");
+  w->body = v;
 }
 
 char *h(char *input) {
@@ -105,7 +142,7 @@ void RootHandler(Response *w, const Request *r) {
 }
 
 void GetUsernameHandler(Response *w, const Request *r) {
-  Render(w, "username");
+  Render(w, "views/username.erb");
 }
 
 void PostUsernameHandler(Response *w, const Request *r) {
@@ -175,6 +212,12 @@ static enum MHD_Result AccessCallback(void *cls, struct MHD_Connection *connecti
 
   struct MHD_Response *response = MHD_create_response_from_buffer(
       strlen(w->body), w->body, MHD_RESPMEM_PERSISTENT);
+  for(Header *h = w->headers; h != NULL; ) {
+    MHD_add_response_header(response, h->key, h->value);
+    Header *n = h = h->next;
+    free(h);
+    h = n;
+  }
   enum MHD_Result ret = MHD_queue_response(connection, w->status, response);
 
   MHD_destroy_response(response);
