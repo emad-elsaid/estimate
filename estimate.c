@@ -36,7 +36,7 @@ typedef struct Board {
 // Helpers
 // ===================================================================
 
-Method StringToHTTPMethod(const char *method) {
+Method String2Method(const char *method) {
   if (strcmp(method, "GET") == 0)
     return METHOD_GET;
 
@@ -139,7 +139,7 @@ static enum MHD_Result AccessCallback(void *cls, struct MHD_Connection *connecti
                                 const char *version, const char *upload_data,
                                 size_t *upload_data_size, void **ptr) {
 
-  Method method = StringToHTTPMethod(method_str);
+  Method method = String2Method(method_str);
 
   // unexpected method
   if (method == METHOD_INVALID)
