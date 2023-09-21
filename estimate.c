@@ -9,7 +9,7 @@
 // Data structures
 // ===================================================================
 
-typedef enum METHOD {
+typedef enum Method {
   METHOD_INVALID,
   METHOD_GET,
   METHOD_POST
