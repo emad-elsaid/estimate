@@ -5,10 +5,13 @@ estimate: estimate.c
 
 test: estimate.o test.c
 
-.PHONY: run, run-test, install, clean
+.PHONY: run, run-check, run-test, install, clean
 
 run: estimate
 	./estimate 4000
+
+run-check: estimate
+	valgrind --leak-check=full ./estimate 4000
 
 run-test: test
 	./test

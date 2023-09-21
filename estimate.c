@@ -32,6 +32,7 @@ typedef struct Response {
   Status status;
   void *body;
   Header *headers;
+  bool freebody;
 } Response;
 
 typedef char* UserID;
@@ -89,6 +90,7 @@ void Render(Response *w, const char *path, ...) {
   w->status = MHD_HTTP_OK;
   WriteHeader(w, "Content-Type", "text/html");
   w->body = v;
+  w->freebody = true;
 }
 
 char *h(char *input) {
@@ -129,8 +131,9 @@ char *ParamsGet(const Request *r, const char *key) {
   return NULL;
 }
 
-void Redirect(Response *w, const char *path) {
-  // TODO redirect user to another path
+void Redirect(Response *w, char *path) {
+  w->status = MHD_HTTP_FOUND;
+  WriteHeader(w, "Location", path);
 }
 
 // Handlers
@@ -210,14 +213,17 @@ static enum MHD_Result AccessCallback(void *cls, struct MHD_Connection *connecti
     return MHD_NO;
   }
 
-  struct MHD_Response *response = MHD_create_response_from_buffer(
-      strlen(w->body), w->body, MHD_RESPMEM_PERSISTENT);
+  enum MHD_ResponseMemoryMode freebody = (w->freebody)? MHD_RESPMEM_MUST_FREE : MHD_RESPMEM_PERSISTENT;
+  struct MHD_Response *response = MHD_create_response_from_buffer(strlen(w->body), w->body, freebody);
+
+  // Write headers and free its memory
   for(Header *h = w->headers; h != NULL; ) {
     MHD_add_response_header(response, h->key, h->value);
-    Header *n = h = h->next;
+    Header *n = h->next;
     free(h);
     h = n;
   }
+
   enum MHD_Result ret = MHD_queue_response(connection, w->status, response);
 
   MHD_destroy_response(response);
