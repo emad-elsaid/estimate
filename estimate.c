@@ -83,11 +83,32 @@ bool PathIs(const Request *r, const char *path) {
 }
 
 void Render(Response *w, const char *path, ...) {
-  char *v = FileContent(path);
-  if ( v == NULL ) return;
+  char *view = FileContent(path);
+  if ( view == NULL ) return;
+
+  char *header = FileContent("views/header.html");
+  if ( header == NULL) {
+    free(view);
+    return;
+  }
+
+  char *footer = FileContent("views/footer.html");
+  if ( footer == NULL ) {
+    free(view);
+    free(header);
+    return;
+  }
+
+  char *page = calloc(strlen(view)+strlen(header)+strlen(footer)+1, sizeof(char));
+  sprintf(page, "%s%s%s", header, view, footer);
+
+  free(view);
+  free(header);
+  free(footer);
+
   w->status = MHD_HTTP_OK;
   WriteHeader(w, "Content-Type", "text/html");
-  w->body = v;
+  w->body = page;
   w->freebody = true;
 }
 
@@ -143,7 +164,7 @@ void RootHandler(Response *w, const Request *r) {
 }
 
 void GetUsernameHandler(Response *w, const Request *r) {
-  Render(w, "views/username.erb");
+  Render(w, "views/username.html");
 }
 
 void PostUsernameHandler(Response *w, const Request *r) {
@@ -152,7 +173,10 @@ void PostUsernameHandler(Response *w, const Request *r) {
     CookiesSet(w, r, "userid", NewUserID());
   }
 
-  Redirect(w, CookiesGet(r, "back"));
+  char *back = CookiesGet(r, "back");
+  if ( back == NULL ) back = "/";
+
+  /* Redirect(w, back); */
 }
 
 void GetBoardHandler(Response *w, const Request *r) {
