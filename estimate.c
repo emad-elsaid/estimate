@@ -155,6 +155,46 @@ void PostUsernameHandler(Response *w, const Request *r) {
   Redirect(w, CookiesGet(r, "back"));
 }
 
+void GetBoardHandler(Response *w, const Request *r) {
+  // TODO
+}
+
+void PostBoardsHandler(Response *w, const Request *r) {
+  // TODO
+}
+
+void GetBoardEditHandler(Response *w, const Request *r) {
+  // TODO
+}
+
+void PostBoardEditHandler(Response *w, const Request *r) {
+  // TODO
+}
+
+void GetBoardResetHandler(Response *w, const Request *r) {
+  // TODO
+}
+
+void GetBoardVoteHandler(Response *w, const Request *r) {
+  // TODO
+}
+
+void PostBoardVoteHandler(Response *w, const Request *r) {
+  // TODO
+}
+
+void GetBoardShowHandler(Response *w, const Request *r) {
+  // TODO
+}
+
+void GetBoardHideHandler(Response *w, const Request *r) {
+  // TODO
+}
+
+void GetBoardCheckUpdateHandler(Response *w, const Request *r) {
+  // TODO
+}
+
 // Router
 // this is the main router, it inspects the request properties and calls the
 // correct handler function
@@ -165,8 +205,23 @@ void Router(Response *w, const Request *r) {
   bool is_POST = r->method == METHOD_POST;
 
   if (is_GET && PathIs(r, "/")) return RootHandler(w, r);
+
   if (is_GET && PathIs(r, "/username")) return GetUsernameHandler(w, r);
   if (is_POST && PathIs(r, "/username")) return PostUsernameHandler(w, r);
+
+  if (is_GET && PathIs(r, "/boards")) return GetBoardHandler(w, r);
+  if (is_POST && PathIs(r, "/boards")) return PostBoardsHandler(w, r);
+
+  if (is_GET && PathIs(r, "/boards/edit")) return GetBoardEditHandler(w, r);
+  if (is_POST && PathIs(r, "/boards/edit")) return PostBoardEditHandler(w, r);
+
+  if (is_GET && PathIs(r, "/boards/reset")) return GetBoardResetHandler(w, r);
+  if (is_GET && PathIs(r, "/boards/vote")) return GetBoardVoteHandler(w, r);
+  if (is_POST && PathIs(r, "/boards/vote")) return PostBoardVoteHandler(w, r);
+
+  if (is_GET && PathIs(r, "/boards/show")) return GetBoardShowHandler(w, r);
+  if (is_GET && PathIs(r, "/boards/hide")) return GetBoardHideHandler(w, r);
+  if (is_GET && PathIs(r, "/boards/check")) return GetBoardCheckUpdateHandler(w, r);
 }
 
 // Setup to invoke router
