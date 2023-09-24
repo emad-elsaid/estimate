@@ -246,6 +246,9 @@ void Router(Response *w, const Request *r) {
   if (is_GET && PathIs(r, "/boards/show")) return GetBoardShowHandler(w, r);
   if (is_GET && PathIs(r, "/boards/hide")) return GetBoardHideHandler(w, r);
   if (is_GET && PathIs(r, "/boards/check")) return GetBoardCheckUpdateHandler(w, r);
+
+  w->status = MHD_HTTP_NOT_FOUND;
+  w->body = "Page Not Found";
 }
 
 // Setup to invoke router
