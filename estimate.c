@@ -21,9 +21,16 @@ typedef struct Headers {
   struct Headers *next;
 } Header;
 
+typedef struct Cookie {
+  char *username;
+  char *userid;
+  char *back;
+} Cookie;
+
 typedef struct Request {
   Method method;
   const char *path;
+  Cookie *cookie;
 } Request;
 
 typedef struct Response {
@@ -31,9 +38,10 @@ typedef struct Response {
   void *body;
   Header *headers;
   bool freebody;
+  Cookie *cookie;
 } Response;
 
-typedef char* UserID;
+typedef char *UserID;
 
 typedef struct Board {
 
@@ -106,7 +114,7 @@ void Render(Response *w, const char *path, ...) {
   free(header);
   free(footer);
 
-  w->status = MHD_HTTP_OK;
+  w->status = 200;
   WriteHeader(w, "Content-Type", "text/html");
   w->body = page;
   w->freebody = true;
@@ -131,18 +139,14 @@ UserID NewUserID() {
   return NULL;
 }
 
-void CookiesSet(Response *w, const Request *r, char *key, char *value){
-  // TODO write a key/value to cookies
+void CookieInit(Response *w) {
+  if (w->cookie != NULL) return;
+  w->cookie = calloc(1, sizeof(Cookie));
 }
 
-char *CookiesGet(const Request *r, char *key) {
-  // TODO return cookie key value
-  return NULL;
-}
-
-bool CookiesExist(const Request *r, const char *key) {
-  // TODO return true if key exist in request cookies
-  return false;
+void CookieFree(Response *w) {
+  if ( w->cookie == NULL ) return;
+  free(w->cookie);
 }
 
 char *ParamsGet(const Request *r, const char *key) {
@@ -151,7 +155,12 @@ char *ParamsGet(const Request *r, const char *key) {
 }
 
 void Redirect(Response *w, char *path) {
-  w->status = MHD_HTTP_FOUND;
+  // This list uses SEE OTHER instead of FOUND as POST requests responding with
+  // FOUND means the path changes without method changes in most cases we want
+  // to change the method to GET. and SEE OTHER does that
+  // https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/302
+  w->status = 303;
+  w->body = "Found";
   WriteHeader(w, "Location", path);
 }
 
@@ -160,7 +169,7 @@ void Redirect(Response *w, char *path) {
 
 void RootHandler(Response *w, const Request *r) {
   w->body = "Hello world";
-  w->status = MHD_HTTP_OK;
+  w->status = 200;
 }
 
 void GetUsernameHandler(Response *w, const Request *r) {
@@ -168,15 +177,19 @@ void GetUsernameHandler(Response *w, const Request *r) {
 }
 
 void PostUsernameHandler(Response *w, const Request *r) {
-  CookiesSet(w, r, "username", ParamsGet(r, "username"));
-  if (! CookiesExist(r, "userid")) {
-    CookiesSet(w, r, "userid", NewUserID());
-  }
+  /* CookieInit(w); */
+  /* w->cookie->username = ParamsGet(r, "username"); */
 
-  char *back = CookiesGet(r, "back");
-  if ( back == NULL ) back = "/";
+  /* if ( r->cookie == NULL || r->cookie->userid == NULL ) { */
+  /*   w->cookie->userid = NewUserID(); */
+  /* } */
 
-  /* Redirect(w, back); */
+  w->status = 200;
+  w->body = "registered";
+
+  /* if ( r->cookie == NULL || r->cookie->back == NULL ) return Redirect(w, "/"); */
+
+  /* Redirect(w, r->cookie->back); */
 }
 
 void GetBoardHandler(Response *w, const Request *r) {
@@ -247,12 +260,43 @@ void Router(Response *w, const Request *r) {
   if (is_GET && PathIs(r, "/boards/hide")) return GetBoardHideHandler(w, r);
   if (is_GET && PathIs(r, "/boards/check")) return GetBoardCheckUpdateHandler(w, r);
 
-  w->status = MHD_HTTP_NOT_FOUND;
+  w->status = 404;
   w->body = "Page Not Found";
 }
 
 // Setup to invoke router
 // ==================================================================
+
+enum MHD_Result post_iterator(void *cls, enum MHD_ValueKind kind,
+                              const char *key, const char *filename,
+                              const char *content_type,
+                              const char *transfer_encoding, const char *data,
+                              uint64_t off, size_t size) {
+  /* struct Request *request = cls; */
+  /* struct Session *session = request->session; */
+
+  /* if (0 == strcmp ("DONE", key)) { */
+  /*   fprintf (stdout, "Session `%s' submitted `%s', `%s'\n", session->sid, session->value_1, session->value_2); */
+  /*   return MHD_YES; */
+  /* } */
+
+  /* if (0 == strcmp ("v1", key)) { */
+  /*     if (size + off >= sizeof(session->value_1)) size = sizeof (session->value_1) - off - 1; */
+  /*     memcpy (&session->value_1[off], data, size); */
+  /*     session->value_1[size+off] = '\0'; */
+  /*     return MHD_YES; */
+  /* } */
+
+  /* if (0 == strcmp ("v2", key)) { */
+  /*     if (size + off >= sizeof(session->value_2)) size = sizeof (session->value_2) - off - 1; */
+  /*     memcpy (&session->value_2[off], data, size); */
+  /*     session->value_2[size+off] = '\0'; */
+  /*     return MHD_YES; */
+  /* } */
+
+  /* fprintf (stderr, "Unsupported form value `%s'\n", key); */
+  return MHD_YES;
+}
 
 static enum MHD_Result AccessCallback(void *cls, struct MHD_Connection *connection,
                                 const char *url, const char *method_str,
@@ -286,18 +330,30 @@ static enum MHD_Result AccessCallback(void *cls, struct MHD_Connection *connecti
 
   Response *w = (Response *)calloc(1, sizeof(Response));
 
+  // Process post
+  if (r->method == METHOD_POST) {
+    struct MHD_PostProcessor *pp = MHD_create_post_processor(connection, 1024, &post_iterator, r);
+    MHD_post_process(pp, upload_data, *upload_data_size);
+    MHD_destroy_post_processor(pp);
+  }
+
   Router(w, r);
-  if( w->status == 0 ) {
+  printf("%d %s ... %d\n", r->method, r->path, w->status);
+
+  CookieFree(w);
+  if (w->status == 0) {
     free(r);
     free(w);
     return MHD_NO;
   }
 
-  enum MHD_ResponseMemoryMode freebody = (w->freebody)? MHD_RESPMEM_MUST_FREE : MHD_RESPMEM_PERSISTENT;
-  struct MHD_Response *response = MHD_create_response_from_buffer(strlen(w->body), w->body, freebody);
+  enum MHD_ResponseMemoryMode freebody =
+    (w->freebody) ? MHD_RESPMEM_MUST_FREE : MHD_RESPMEM_PERSISTENT;
+  struct MHD_Response *response =
+    MHD_create_response_from_buffer(strlen(w->body), w->body, freebody);
 
   // Write headers and free its memory
-  for(Header *h = w->headers; h != NULL; ) {
+  for (Header *h = w->headers; h != NULL;) {
     MHD_add_response_header(response, h->key, h->value);
     Header *n = h->next;
     free(h);
@@ -324,7 +380,7 @@ int main(int argc, char **argv) {
   struct MHD_Daemon *d = MHD_start_daemon(MHD_USE_AUTO_INTERNAL_THREAD, port, NULL, NULL, &AccessCallback, NULL, MHD_OPTION_END);
   if (d == NULL) return 1;
 
-  printf("Server started on port %d", port);
+  printf("Server started on port %d\n", port);
   getc(stdin);
   MHD_stop_daemon(d);
   return 0;
