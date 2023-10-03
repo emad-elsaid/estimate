@@ -31,6 +31,7 @@ typedef struct Request {
   Method method;
   const char *path;
   Cookie *cookie;
+  Hash *body;
 } Request;
 
 typedef struct Response {
@@ -50,12 +51,28 @@ typedef struct Board {
 // Helpers
 // ===================================================================
 
-void WriteHeader(Response *w, char *key, char *value) {
+Hash *HashSet(Hash *r, char *key, char *value) {
   Hash *h = malloc(sizeof(Hash));
   h->key = key;
   h->value = value;
-  h->next = w->headers;
-  w->headers = h;
+  h->next = r;
+  return h;
+}
+
+void HashFree(Hash *r, bool freeKey, bool freeValue) {
+  for(Hash *c = r; c != NULL;){
+    Hash *n = c->next;
+
+    if(freeKey) free(c->key);
+    if(freeValue) free(c->value);
+    free(c);
+
+    c = n;
+  }
+}
+
+void WriteHeader(Response *w, char *key, char *value) {
+  w->headers = HashSet(w->headers, key, value);
 }
 
 char *FileContent(const char *path) {
@@ -272,13 +289,11 @@ enum MHD_Result post_iterator(void *cls, enum MHD_ValueKind kind,
                               const char *content_type,
                               const char *transfer_encoding, const char *data,
                               uint64_t off, size_t size) {
-  /* struct Request *request = cls; */
-  /* struct Session *session = request->session; */
+  struct Request *request = cls;
 
-  /* if (0 == strcmp ("DONE", key)) { */
-  /*   fprintf (stdout, "Session `%s' submitted `%s', `%s'\n", session->sid, session->value_1, session->value_2); */
-  /*   return MHD_YES; */
-  /* } */
+  if (0 == strcmp ("DONE", key)) {
+    return MHD_YES;
+  }
 
   /* if (0 == strcmp ("v1", key)) { */
   /*     if (size + off >= sizeof(session->value_1)) size = sizeof (session->value_1) - off - 1; */
@@ -294,14 +309,28 @@ enum MHD_Result post_iterator(void *cls, enum MHD_ValueKind kind,
   /*     return MHD_YES; */
   /* } */
 
-  /* fprintf (stderr, "Unsupported form value `%s'\n", key); */
   return MHD_YES;
+}
+
+void request_completed(void *cls, struct MHD_Connection *connection,
+                       void **con_cls, enum MHD_RequestTerminationCode toe) {
+  struct Request *r = *con_cls;
+
+  if (NULL == r) return;
+
+  if (r->method == METHOD_POST) {
+    /* MHD_destroy_post_processor(r->postprocessor); */
+    HashFree(r->body, true, true);
+  }
+
+  free(r);
+  *con_cls = NULL;
 }
 
 static enum MHD_Result AccessCallback(void *cls, struct MHD_Connection *connection,
                                 const char *url, const char *method_str,
                                 const char *version, const char *upload_data,
-                                size_t *upload_data_size, void **ptr) {
+                                size_t *upload_data_size, void **con_cls) {
 
   Method method = String2Method(method_str);
 
@@ -313,26 +342,23 @@ static enum MHD_Result AccessCallback(void *cls, struct MHD_Connection *connecti
   if (method == METHOD_GET && *upload_data_size != 0)
     return MHD_NO;
 
-  static int dummy;
-  if (&dummy != *ptr) {
-    // The first time only the headers are valid,
-    // do not respond in the first round...
-    *ptr = &dummy;
+  Request *r;
+
+  if ( *con_cls != NULL) {
+    r = *con_cls;
+  } else {
+    r = (Request *)calloc(1, sizeof(Request));
+    r->method = method;
+    r->path = url;
+    *con_cls = r;
     return MHD_YES;
   }
-
-  // clear context pointer
-  *ptr = NULL;
-
-  Request *r = (Request *)calloc(1, sizeof(Request));
-  r->method = method;
-  r->path = url;
 
   Response *w = (Response *)calloc(1, sizeof(Response));
 
   // Process post
   if (r->method == METHOD_POST) {
-    struct MHD_PostProcessor *pp = MHD_create_post_processor(connection, 1024, &post_iterator, r);
+    struct MHD_PostProcessor *pp = MHD_create_post_processor(connection, 1024*1024, &post_iterator, r);
     MHD_post_process(pp, upload_data, *upload_data_size);
     MHD_destroy_post_processor(pp);
   }
@@ -352,19 +378,14 @@ static enum MHD_Result AccessCallback(void *cls, struct MHD_Connection *connecti
   struct MHD_Response *response =
     MHD_create_response_from_buffer(strlen(w->body), w->body, freebody);
 
-  // Write headers and free its memory
-  for (Hash *h = w->headers; h != NULL;) {
+  for (Hash *h = w->headers; h != NULL; h = h->next)
     MHD_add_response_header(response, h->key, h->value);
-    Hash *n = h->next;
-    free(h);
-    h = n;
-  }
+
 
   enum MHD_Result ret = MHD_queue_response(connection, w->status, response);
 
   MHD_destroy_response(response);
-
-  free(r);
+  HashFree(w->headers, true, false);
   free(w);
   return ret;
 }
@@ -377,7 +398,10 @@ int main(int argc, char **argv) {
 
   int port = atoi(argv[1]);
 
-  struct MHD_Daemon *d = MHD_start_daemon(MHD_USE_AUTO_INTERNAL_THREAD, port, NULL, NULL, &AccessCallback, NULL, MHD_OPTION_END);
+  struct MHD_Daemon *d = MHD_start_daemon(
+      MHD_USE_AUTO_INTERNAL_THREAD, port, NULL, NULL, &AccessCallback, NULL,
+      MHD_OPTION_NOTIFY_COMPLETED, &request_completed, NULL,
+      MHD_OPTION_END);
   if (d == NULL) return 1;
 
   printf("Server started on port %d\n", port);
