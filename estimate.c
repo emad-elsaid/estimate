@@ -4,6 +4,8 @@
 #include <stdio.h>
 #include <stdbool.h>
 
+#define POSTBUFFERSIZE 1024
+
 // Data structures
 // ===================================================================
 
@@ -32,6 +34,8 @@ typedef struct Request {
   const char *path;
   Cookie *cookie;
   Hash *body;
+  // This section is for MHD variables
+  struct MHD_PostProcessor *postprocessor;
 } Request;
 
 typedef struct Response {
@@ -319,7 +323,7 @@ void request_completed(void *cls, struct MHD_Connection *connection,
   if (NULL == r) return;
 
   if (r->method == METHOD_POST) {
-    /* MHD_destroy_post_processor(r->postprocessor); */
+    MHD_destroy_post_processor(r->postprocessor);
     HashFree(r->body, true, true);
   }
 
@@ -350,18 +354,24 @@ static enum MHD_Result AccessCallback(void *cls, struct MHD_Connection *connecti
     r = (Request *)calloc(1, sizeof(Request));
     r->method = method;
     r->path = url;
+
+    if (r->method == METHOD_POST) {
+      r->postprocessor = MHD_create_post_processor(connection, POSTBUFFERSIZE, &post_iterator, r);
+    }
+
     *con_cls = r;
+
+    return MHD_YES;
+  }
+
+  if (r->method == METHOD_POST && *upload_data_size != 0) {
+    MHD_post_process(r->postprocessor, upload_data, *upload_data_size);
+    *upload_data_size = 0;
+
     return MHD_YES;
   }
 
   Response *w = (Response *)calloc(1, sizeof(Response));
-
-  // Process post
-  if (r->method == METHOD_POST) {
-    struct MHD_PostProcessor *pp = MHD_create_post_processor(connection, 1024*1024, &post_iterator, r);
-    MHD_post_process(pp, upload_data, *upload_data_size);
-    MHD_destroy_post_processor(pp);
-  }
 
   Router(w, r);
   printf("%d %s ... %d\n", r->method, r->path, w->status);
@@ -374,13 +384,12 @@ static enum MHD_Result AccessCallback(void *cls, struct MHD_Connection *connecti
   }
 
   enum MHD_ResponseMemoryMode freebody =
-    (w->freebody) ? MHD_RESPMEM_MUST_FREE : MHD_RESPMEM_PERSISTENT;
+      (w->freebody) ? MHD_RESPMEM_MUST_FREE : MHD_RESPMEM_PERSISTENT;
   struct MHD_Response *response =
-    MHD_create_response_from_buffer(strlen(w->body), w->body, freebody);
+      MHD_create_response_from_buffer(strlen(w->body), w->body, freebody);
 
   for (Hash *h = w->headers; h != NULL; h = h->next)
     MHD_add_response_header(response, h->key, h->value);
-
 
   enum MHD_Result ret = MHD_queue_response(connection, w->status, response);
 
@@ -388,7 +397,7 @@ static enum MHD_Result AccessCallback(void *cls, struct MHD_Connection *connecti
   HashFree(w->headers, true, false);
   free(w);
   return ret;
-}
+  }
 
 int main(int argc, char **argv) {
   if (argc != 2) {
