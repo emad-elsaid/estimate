@@ -11,7 +11,7 @@ run: estimate
 	./estimate 4000
 
 run-check: estimate
-	valgrind -s --leak-check=full ./estimate 4000
+	valgrind --leak-check=full ./estimate 4000
 
 run-test: test
 	./test

@@ -63,6 +63,15 @@ Hash *HashSet(Hash *r, char *key, char *value) {
   return h;
 }
 
+char *HashGet(Hash *r, char *key) {
+  for(Hash *c = r; c != NULL; c = c->next) {
+    if(strcmp(c->key, key) == 0)
+      return c->value;
+  }
+
+  return NULL;
+}
+
 void HashFree(Hash *r, bool freeKey, bool freeValue) {
   for(Hash *c = r; c != NULL;){
     Hash *n = c->next;
@@ -198,19 +207,18 @@ void GetUsernameHandler(Response *w, const Request *r) {
 }
 
 void PostUsernameHandler(Response *w, const Request *r) {
-  /* CookieInit(w); */
-  /* w->cookie->username = ParamsGet(r, "username"); */
+  CookieInit(w);
 
-  /* if ( r->cookie == NULL || r->cookie->userid == NULL ) { */
-  /*   w->cookie->userid = NewUserID(); */
-  /* } */
+  if (r->cookie == NULL || r->cookie->userid == NULL) {
+    w->cookie->username = HashGet(r->body, "username");
+    w->cookie->userid = NewUserID();
+  }
 
   w->status = 200;
-  w->body = "registered";
+  w->body = w->cookie->username;
 
-  /* if ( r->cookie == NULL || r->cookie->back == NULL ) return Redirect(w, "/"); */
-
-  /* Redirect(w, r->cookie->back); */
+  if ( r->cookie == NULL || r->cookie->back == NULL ) return Redirect(w, "/");
+  Redirect(w, r->cookie->back);
 }
 
 void GetBoardHandler(Response *w, const Request *r) {
@@ -295,23 +303,14 @@ enum MHD_Result post_iterator(void *cls, enum MHD_ValueKind kind,
                               uint64_t off, size_t size) {
   struct Request *request = cls;
 
-  if (0 == strcmp ("DONE", key)) {
-    return MHD_YES;
-  }
+  char *k = malloc(strlen(key)+1);
+  char *v = malloc(size+1);
 
-  /* if (0 == strcmp ("v1", key)) { */
-  /*     if (size + off >= sizeof(session->value_1)) size = sizeof (session->value_1) - off - 1; */
-  /*     memcpy (&session->value_1[off], data, size); */
-  /*     session->value_1[size+off] = '\0'; */
-  /*     return MHD_YES; */
-  /* } */
+  memcpy(k, key, strlen(key) + 1);
+  memcpy(v, data, size);
+  v[size] = 0;
 
-  /* if (0 == strcmp ("v2", key)) { */
-  /*     if (size + off >= sizeof(session->value_2)) size = sizeof (session->value_2) - off - 1; */
-  /*     memcpy (&session->value_2[off], data, size); */
-  /*     session->value_2[size+off] = '\0'; */
-  /*     return MHD_YES; */
-  /* } */
+  request->body = HashSet(request->body, k, v);
 
   return MHD_YES;
 }
@@ -385,8 +384,9 @@ static enum MHD_Result AccessCallback(void *cls, struct MHD_Connection *connecti
 
   enum MHD_ResponseMemoryMode freebody =
       (w->freebody) ? MHD_RESPMEM_MUST_FREE : MHD_RESPMEM_PERSISTENT;
+  int size = (w->body == NULL)? 0: strlen(w->body);
   struct MHD_Response *response =
-      MHD_create_response_from_buffer(strlen(w->body), w->body, freebody);
+      MHD_create_response_from_buffer(size, w->body, freebody);
 
   for (Hash *h = w->headers; h != NULL; h = h->next)
     MHD_add_response_header(response, h->key, h->value);
