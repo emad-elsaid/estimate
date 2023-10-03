@@ -15,11 +15,11 @@ typedef enum Method {
 
 typedef int Status;
 
-typedef struct Headers {
+typedef struct Hash {
   char *key;
   char *value;
-  struct Headers *next;
-} Header;
+  struct Hash *next;
+} Hash;
 
 typedef struct Cookie {
   char *username;
@@ -36,7 +36,7 @@ typedef struct Request {
 typedef struct Response {
   Status status;
   void *body;
-  Header *headers;
+  Hash *headers;
   bool freebody;
   Cookie *cookie;
 } Response;
@@ -51,7 +51,7 @@ typedef struct Board {
 // ===================================================================
 
 void WriteHeader(Response *w, char *key, char *value) {
-  Header *h = malloc(sizeof(Header));
+  Hash *h = malloc(sizeof(Hash));
   h->key = key;
   h->value = value;
   h->next = w->headers;
@@ -353,9 +353,9 @@ static enum MHD_Result AccessCallback(void *cls, struct MHD_Connection *connecti
     MHD_create_response_from_buffer(strlen(w->body), w->body, freebody);
 
   // Write headers and free its memory
-  for (Header *h = w->headers; h != NULL;) {
+  for (Hash *h = w->headers; h != NULL;) {
     MHD_add_response_header(response, h->key, h->value);
-    Header *n = h->next;
+    Hash *n = h->next;
     free(h);
     h = n;
   }
