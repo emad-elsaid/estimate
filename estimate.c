@@ -185,9 +185,30 @@ char *h(char *input) {
   return input;
 }
 
+void Redirect(Response *w, char *path) {
+  // This list uses SEE OTHER instead of FOUND as POST requests responding with
+  // FOUND means the path changes without method changes in most cases we want
+  // to change the method to GET. and SEE OTHER does that
+  // https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/302
+  w->status = 303;
+  w->body = "Found";
+  WriteHeader(w, "Location", path);
+}
+
 UserID EnsureUser(Response *w, const Request *r) {
-  // TODO if user doesn't exist redirect to /username and return null, if user exist return userID
-  return NULL;
+  char *userid = HashGet(r->cookie, "userid");
+  if( userid == NULL ) {
+    char *path = malloc(strlen(r->path)+1);
+    MemoryTrack(&w->memory, path);
+
+    strcpy(path, r->path);
+    HashSet(&w->cookie, "back", path);
+
+    Redirect(w, "/username");
+    return NULL;
+  }
+
+  return userid;
 }
 
 Board *EnsureBoard(Response *w, const Request *r) {
@@ -208,20 +229,12 @@ char *ParamsGet(const Request *r, const char *key) {
   return NULL;
 }
 
-void Redirect(Response *w, char *path) {
-  // This list uses SEE OTHER instead of FOUND as POST requests responding with
-  // FOUND means the path changes without method changes in most cases we want
-  // to change the method to GET. and SEE OTHER does that
-  // https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/302
-  w->status = 303;
-  w->body = "Found";
-  WriteHeader(w, "Location", path);
-}
-
 // Handlers
 // ==================================================================
 
 void RootHandler(Response *w, const Request *r) {
+  if ( EnsureUser(w, r) == NULL ) return;
+
   w->body = "Hello world";
   w->status = 200;
 }
