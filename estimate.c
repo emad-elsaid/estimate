@@ -3,6 +3,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdbool.h>
+#include <uuid/uuid.h>
 
 #define POSTBUFFERSIZE 1024
 
@@ -23,17 +24,17 @@ typedef struct Hash {
   struct Hash *next;
 } Hash;
 
-typedef struct Cookie {
-  char *username;
-  char *userid;
-  char *back;
-} Cookie;
+typedef struct Memory {
+  void *memory;
+  struct Memory *next;
+} Memory;
 
 typedef struct Request {
   Method method;
   const char *path;
-  Cookie *cookie;
+  Hash *cookie;
   Hash *body;
+  Memory *memory;
   // This section is for MHD variables
   struct MHD_PostProcessor *postprocessor;
 } Request;
@@ -43,7 +44,8 @@ typedef struct Response {
   void *body;
   Hash *headers;
   bool freebody;
-  Cookie *cookie;
+  Hash *cookie;
+  Memory *memory;
 } Response;
 
 typedef char *UserID;
@@ -64,24 +66,50 @@ Hash *HashSet(Hash *r, char *key, char *value) {
 }
 
 char *HashGet(Hash *r, char *key) {
-  for(Hash *c = r; c != NULL; c = c->next) {
-    if(strcmp(c->key, key) == 0)
+  for (Hash *c = r; c != NULL; c = c->next) {
+    if (strcmp(c->key, key) == 0)
       return c->value;
   }
 
   return NULL;
 }
 
-void HashFree(Hash *r, bool freeKey, bool freeValue) {
-  for(Hash *c = r; c != NULL;){
+void HashFree(Hash *r) {
+  for (Hash *c = r; c != NULL;) {
     Hash *n = c->next;
-
-    if(freeKey) free(c->key);
-    if(freeValue) free(c->value);
     free(c);
-
     c = n;
   }
+}
+
+Memory *TrackMemory(Memory *r, void *v) {
+  Memory *m = malloc(sizeof(Memory));
+  m->memory = v;
+  m->next = r;
+  return m;
+}
+
+void FreeMemory(Memory *r) {
+  for (Memory *c = r; c != NULL;) {
+    Memory *n = c->next;
+    free(c->memory);
+    free(c);
+    c = n;
+  }
+}
+
+void FreeRequest(Request *r) {
+  HashFree(r->body);
+  HashFree(r->cookie);
+  FreeMemory(r->memory);
+  free(r);
+}
+
+void FreeResponse(Response *w) {
+  HashFree(w->headers);
+  HashFree(w->cookie);
+  FreeMemory(w->memory);
+  free(w);
 }
 
 void WriteHeader(Response *w, char *key, char *value) {
@@ -166,17 +194,11 @@ Board *EnsureBoard(Response *w, const Request *r) {
 }
 
 UserID NewUserID() {
-  return NULL;
-}
-
-void CookieInit(Response *w) {
-  if (w->cookie != NULL) return;
-  w->cookie = calloc(1, sizeof(Cookie));
-}
-
-void CookieFree(Response *w) {
-  if ( w->cookie == NULL ) return;
-  free(w->cookie);
+  uuid_t uuid;
+  uuid_generate(uuid);
+  char *userid = malloc(UUID_STR_LEN);
+  uuid_unparse_lower(uuid, userid);
+  return userid;
 }
 
 char *ParamsGet(const Request *r, const char *key) {
@@ -207,18 +229,16 @@ void GetUsernameHandler(Response *w, const Request *r) {
 }
 
 void PostUsernameHandler(Response *w, const Request *r) {
-  CookieInit(w);
-
-  if (r->cookie == NULL || r->cookie->userid == NULL) {
-    w->cookie->username = HashGet(r->body, "username");
-    w->cookie->userid = NewUserID();
+  if (HashGet(r->cookie, "userid") == NULL) {
+    w->cookie = HashSet(w->cookie, "username", HashGet(r->body, "username"));
+    UserID userid = NewUserID();
+    w->memory = TrackMemory(w->memory, userid);
+    w->cookie = HashSet(w->cookie, "userid", userid);
   }
 
-  w->status = 200;
-  w->body = w->cookie->username;
-
-  if ( r->cookie == NULL || r->cookie->back == NULL ) return Redirect(w, "/");
-  Redirect(w, r->cookie->back);
+  char *back = HashGet(r->cookie, "back");
+  if ( back == NULL ) return Redirect(w, "/");
+  Redirect(w, back);
 }
 
 void GetBoardHandler(Response *w, const Request *r) {
@@ -304,7 +324,10 @@ enum MHD_Result post_iterator(void *cls, enum MHD_ValueKind kind,
   struct Request *request = cls;
 
   char *k = malloc(strlen(key)+1);
-  char *v = malloc(size+1);
+  request->memory = TrackMemory(request->memory, k);
+
+  char *v = malloc(size + 1);
+  request->memory = TrackMemory(request->memory, v);
 
   memcpy(k, key, strlen(key) + 1);
   memcpy(v, data, size);
@@ -323,10 +346,9 @@ void request_completed(void *cls, struct MHD_Connection *connection,
 
   if (r->method == METHOD_POST) {
     MHD_destroy_post_processor(r->postprocessor);
-    HashFree(r->body, true, true);
   }
 
-  free(r);
+  FreeRequest(r);
   *con_cls = NULL;
 }
 
@@ -375,16 +397,13 @@ static enum MHD_Result AccessCallback(void *cls, struct MHD_Connection *connecti
   Router(w, r);
   printf("%d %s ... %d\n", r->method, r->path, w->status);
 
-  CookieFree(w);
-  if (w->status == 0) {
-    free(r);
-    free(w);
-    return MHD_NO;
-  }
+  if (w->status == 0) w->status = 204; // no content
 
   enum MHD_ResponseMemoryMode freebody =
       (w->freebody) ? MHD_RESPMEM_MUST_FREE : MHD_RESPMEM_PERSISTENT;
-  int size = (w->body == NULL)? 0: strlen(w->body);
+
+  int size = (w->body == NULL) ? 0 : strlen(w->body);
+
   struct MHD_Response *response =
       MHD_create_response_from_buffer(size, w->body, freebody);
 
@@ -394,10 +413,10 @@ static enum MHD_Result AccessCallback(void *cls, struct MHD_Connection *connecti
   enum MHD_Result ret = MHD_queue_response(connection, w->status, response);
 
   MHD_destroy_response(response);
-  HashFree(w->headers, true, false);
-  free(w);
+  FreeResponse(w);
+
   return ret;
-  }
+}
 
 int main(int argc, char **argv) {
   if (argc != 2) {

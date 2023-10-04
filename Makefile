@@ -1,4 +1,4 @@
-LDFLAGS=`pkg-config --libs --cflags --static libmicrohttpd`
+LDFLAGS=`pkg-config --libs --cflags --static libmicrohttpd uuid`
 CCFLAGS = -O3 -Wextra -Wall $LDFLAGS
 
 estimate: estimate.c
