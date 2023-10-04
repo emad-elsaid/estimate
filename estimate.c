@@ -34,6 +34,7 @@ typedef struct Request {
   const char *path;
   Hash *cookie;
   Hash *body;
+  // To track heap memory and free it later
   Memory *memory;
   // This section is for MHD variables
   struct MHD_PostProcessor *postprocessor;
@@ -42,9 +43,10 @@ typedef struct Request {
 typedef struct Response {
   Status status;
   void *body;
-  Hash *headers;
   bool freebody;
+  Hash *headers;
   Hash *cookie;
+  // To track heap memory and free it later
   Memory *memory;
 } Response;
 
@@ -57,12 +59,12 @@ typedef struct Board {
 // Helpers
 // ===================================================================
 
-Hash *HashSet(Hash *r, char *key, char *value) {
+void HashSet(Hash **r, char *key, char *value) {
   Hash *h = malloc(sizeof(Hash));
   h->key = key;
   h->value = value;
-  h->next = r;
-  return h;
+  h->next = *r;
+  *r = h;
 }
 
 char *HashGet(Hash *r, char *key) {
@@ -82,14 +84,14 @@ void HashFree(Hash *r) {
   }
 }
 
-Memory *TrackMemory(Memory *r, void *v) {
+void MemoryTrack(Memory **r, void *v) {
   Memory *m = malloc(sizeof(Memory));
   m->memory = v;
-  m->next = r;
-  return m;
+  m->next = *r;
+  *r = m;
 }
 
-void FreeMemory(Memory *r) {
+void MemoryFree(Memory *r) {
   for (Memory *c = r; c != NULL;) {
     Memory *n = c->next;
     free(c->memory);
@@ -98,22 +100,22 @@ void FreeMemory(Memory *r) {
   }
 }
 
-void FreeRequest(Request *r) {
+void RequestFree(Request *r) {
   HashFree(r->body);
   HashFree(r->cookie);
-  FreeMemory(r->memory);
+  MemoryFree(r->memory);
   free(r);
 }
 
-void FreeResponse(Response *w) {
+void ResponseFree(Response *w) {
   HashFree(w->headers);
   HashFree(w->cookie);
-  FreeMemory(w->memory);
+  MemoryFree(w->memory);
   free(w);
 }
 
 void WriteHeader(Response *w, char *key, char *value) {
-  w->headers = HashSet(w->headers, key, value);
+  HashSet(&w->headers, key, value);
 }
 
 char *FileContent(const char *path) {
@@ -230,10 +232,10 @@ void GetUsernameHandler(Response *w, const Request *r) {
 
 void PostUsernameHandler(Response *w, const Request *r) {
   if (HashGet(r->cookie, "userid") == NULL) {
-    w->cookie = HashSet(w->cookie, "username", HashGet(r->body, "username"));
+    HashSet(&w->cookie, "username", HashGet(r->body, "username"));
     UserID userid = NewUserID();
-    w->memory = TrackMemory(w->memory, userid);
-    w->cookie = HashSet(w->cookie, "userid", userid);
+    MemoryTrack(&w->memory, userid);
+    HashSet(&w->cookie, "userid", userid);
   }
 
   char *back = HashGet(r->cookie, "back");
@@ -324,16 +326,16 @@ enum MHD_Result post_iterator(void *cls, enum MHD_ValueKind kind,
   struct Request *request = cls;
 
   char *k = malloc(strlen(key)+1);
-  request->memory = TrackMemory(request->memory, k);
+  MemoryTrack(&request->memory, k);
 
   char *v = malloc(size + 1);
-  request->memory = TrackMemory(request->memory, v);
+  MemoryTrack(&request->memory, v);
 
   memcpy(k, key, strlen(key) + 1);
   memcpy(v, data, size);
   v[size] = 0;
 
-  request->body = HashSet(request->body, k, v);
+  HashSet(&request->body, k, v);
 
   return MHD_YES;
 }
@@ -348,7 +350,7 @@ void request_completed(void *cls, struct MHD_Connection *connection,
     MHD_destroy_post_processor(r->postprocessor);
   }
 
-  FreeRequest(r);
+  RequestFree(r);
   *con_cls = NULL;
 }
 
@@ -413,7 +415,7 @@ static enum MHD_Result AccessCallback(void *cls, struct MHD_Connection *connecti
   enum MHD_Result ret = MHD_queue_response(connection, w->status, response);
 
   MHD_destroy_response(response);
-  FreeResponse(w);
+  ResponseFree(w);
 
   return ret;
 }
