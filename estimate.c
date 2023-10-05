@@ -57,7 +57,7 @@ typedef struct Board {
 } Board;
 
 // Helpers
-// ===================================================================
+// ========
 
 void HashSet(Hash **r, char *key, char *value) {
   Hash *h = malloc(sizeof(Hash));
@@ -230,13 +230,12 @@ char *ParamsGet(const Request *r, const char *key) {
 }
 
 // Handlers
-// ==================================================================
+// =========
 
 void RootHandler(Response *w, const Request *r) {
   if ( EnsureUser(w, r) == NULL ) return;
 
-  w->body = "Hello world";
-  w->status = 200;
+  Render(w, "views/index.html");
 }
 
 void GetUsernameHandler(Response *w, const Request *r) {
