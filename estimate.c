@@ -135,11 +135,8 @@ char *CookieSerialize(char *key, char *value) {
 }
 
 char *CookieUnserialize(const char *value) {
-  int size;
-  char *unescaped_value = curl_easy_unescape(NULL, value, 0, &size);
-
-  char *s = malloc(size+1);
-  strcpy(s, unescaped_value);
+  char *unescaped_value = curl_easy_unescape(NULL, value, 0, NULL);
+  char *s = strdup(unescaped_value);
 
   curl_free(unescaped_value);
 
@@ -230,13 +227,12 @@ void Redirect(Response *w, char *path) {
 UserID EnsureUser(Response *w, const Request *r) {
   char *userid = HashGet(r->cookie, "userid");
   if( userid == NULL ) {
-    char *path = malloc(strlen(r->path)+1);
+    char *path = strdup(r->path);
     MemoryTrack(&w->memory, path);
 
-    strcpy(path, r->path);
     HashSet(&w->cookie, "back", path);
-
     Redirect(w, "/username");
+
     return NULL;
   }
 
@@ -370,13 +366,11 @@ enum MHD_Result post_iterator(void *cls, enum MHD_ValueKind kind,
                               uint64_t off, size_t size) {
   Request *r = cls;
 
-  char *k = malloc(strlen(key)+1);
+  char *k = strdup(key);
   MemoryTrack(&r->memory, k);
 
   char *v = malloc(size + 1);
   MemoryTrack(&r->memory, v);
-
-  memcpy(k, key, strlen(key) + 1);
   memcpy(v, data, size);
   v[size] = 0;
 
@@ -392,9 +386,8 @@ enum MHD_Result cookie_iterator(void *cls, enum MHD_ValueKind kind,
   char *unserialized_value = CookieUnserialize(value);
   MemoryTrack(&r->memory, unserialized_value);
 
-  char *k = malloc(strlen(key) + 1);
+  char *k = strdup(key);
   MemoryTrack(&r->memory, k);
-  strcpy(k, key);
 
   HashSet(&r->cookie, k, unserialized_value);
 
