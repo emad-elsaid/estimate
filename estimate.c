@@ -368,19 +368,19 @@ enum MHD_Result post_iterator(void *cls, enum MHD_ValueKind kind,
                               const char *content_type,
                               const char *transfer_encoding, const char *data,
                               uint64_t off, size_t size) {
-  Request *request = cls;
+  Request *r = cls;
 
   char *k = malloc(strlen(key)+1);
-  MemoryTrack(&request->memory, k);
+  MemoryTrack(&r->memory, k);
 
   char *v = malloc(size + 1);
-  MemoryTrack(&request->memory, v);
+  MemoryTrack(&r->memory, v);
 
   memcpy(k, key, strlen(key) + 1);
   memcpy(v, data, size);
   v[size] = 0;
 
-  HashSet(&request->body, k, v);
+  HashSet(&r->body, k, v);
 
   return MHD_YES;
 }
