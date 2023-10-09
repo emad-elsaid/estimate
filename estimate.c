@@ -9,7 +9,6 @@
 
 
 #define POSTBUFFERSIZE 1024
-#define COOKIENAME "estimate"
 
 // Data structures
 // ===================================================================
@@ -80,6 +79,11 @@ char *HashGet(Hash *r, char *key) {
   return NULL;
 }
 
+void HashPrint(Hash *r) {
+  for (Hash *c = r; c != NULL; c = c->next)
+    printf("%s -> %s\n", c->key, c->key);
+}
+
 void HashFree(Hash *r) {
   for (Hash *c = r; c != NULL;) {
     Hash *n = c->next;
@@ -126,6 +130,18 @@ char *CookieSerialize(char *key, char *value) {
   sprintf(s, "%s=%s", key, escaped_value);
 
   curl_free(escaped_value);
+
+  return s;
+}
+
+char *CookieUnserialize(const char *value) {
+  int size;
+  char *unescaped_value = curl_easy_unescape(NULL, value, 0, &size);
+
+  char *s = malloc(size+1);
+  strcpy(s, unescaped_value);
+
+  curl_free(unescaped_value);
 
   return s;
 }
@@ -255,6 +271,7 @@ void RootHandler(Response *w, const Request *r) {
 }
 
 void GetUsernameHandler(Response *w, const Request *r) {
+  HashPrint(r->cookie);
   Render(w, "views/username.html");
 }
 
@@ -351,7 +368,7 @@ enum MHD_Result post_iterator(void *cls, enum MHD_ValueKind kind,
                               const char *content_type,
                               const char *transfer_encoding, const char *data,
                               uint64_t off, size_t size) {
-  struct Request *request = cls;
+  Request *request = cls;
 
   char *k = malloc(strlen(key)+1);
   MemoryTrack(&request->memory, k);
@@ -364,6 +381,22 @@ enum MHD_Result post_iterator(void *cls, enum MHD_ValueKind kind,
   v[size] = 0;
 
   HashSet(&request->body, k, v);
+
+  return MHD_YES;
+}
+
+enum MHD_Result cookie_iterator(void *cls, enum MHD_ValueKind kind,
+                                const char *key, const char *value) {
+
+  Request *r = cls;
+  char *unserialized_value = CookieUnserialize(value);
+  MemoryTrack(&r->memory, unserialized_value);
+
+  char *k = malloc(strlen(key) + 1);
+  MemoryTrack(&r->memory, k);
+  strcpy(k, key);
+
+  HashSet(&r->cookie, k, unserialized_value);
 
   return MHD_YES;
 }
@@ -422,7 +455,7 @@ static enum MHD_Result AccessCallback(void *cls, struct MHD_Connection *connecti
     return MHD_YES;
   }
 
-  const char *value = MHD_lookup_connection_value(connection, MHD_COOKIE_KIND, COOKIENAME);
+  MHD_get_connection_values(connection, MHD_COOKIE_KIND, &cookie_iterator, r);
 
   Response *w = (Response *)calloc(1, sizeof(Response));
 
@@ -444,9 +477,11 @@ static enum MHD_Result AccessCallback(void *cls, struct MHD_Connection *connecti
     MHD_add_response_header(response, h->key, h->value);
 
   // Set cookie
-  char *cookie = CookieSerialize(COOKIENAME, "Hello world!/@;");
-  MemoryTrack(&w->memory, cookie);
-  MHD_add_response_header(response, MHD_HTTP_HEADER_SET_COOKIE, cookie);
+  for (Hash *h = w->cookie; h != NULL; h = h->next) {
+    char *cookie = CookieSerialize(h->key, h->value);
+    MemoryTrack(&w->memory, cookie);
+    MHD_add_response_header(response, MHD_HTTP_HEADER_SET_COOKIE, cookie);
+  }
 
   enum MHD_Result ret = MHD_queue_response(connection, w->status, response);
 
