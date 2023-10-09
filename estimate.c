@@ -4,8 +4,12 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <uuid/uuid.h>
+#include <curl/curl.h>
+#include <curl/easy.h>
+
 
 #define POSTBUFFERSIZE 1024
+#define COOKIENAME "estimate"
 
 // Data structures
 // ===================================================================
@@ -112,6 +116,18 @@ void ResponseFree(Response *w) {
   HashFree(w->cookie);
   MemoryFree(w->memory);
   free(w);
+}
+
+char *CookieSerialize(char *key, char *value) {
+  char *escaped_value = curl_easy_escape(NULL, value, 0);
+
+  int size = strlen(key)+1+strlen(escaped_value)+1; // key + = + value + \0
+  char *s = malloc(size);
+  sprintf(s, "%s=%s", key, escaped_value);
+
+  curl_free(escaped_value);
+
+  return s;
 }
 
 void WriteHeader(Response *w, char *key, char *value) {
@@ -406,6 +422,8 @@ static enum MHD_Result AccessCallback(void *cls, struct MHD_Connection *connecti
     return MHD_YES;
   }
 
+  const char *value = MHD_lookup_connection_value(connection, MHD_COOKIE_KIND, COOKIENAME);
+
   Response *w = (Response *)calloc(1, sizeof(Response));
 
   Router(w, r);
@@ -421,8 +439,14 @@ static enum MHD_Result AccessCallback(void *cls, struct MHD_Connection *connecti
   struct MHD_Response *response =
       MHD_create_response_from_buffer(size, w->body, freebody);
 
+  // Set headers
   for (Hash *h = w->headers; h != NULL; h = h->next)
     MHD_add_response_header(response, h->key, h->value);
+
+  // Set cookie
+  char *cookie = CookieSerialize(COOKIENAME, "Hello world!/@;");
+  MemoryTrack(&w->memory, cookie);
+  MHD_add_response_header(response, MHD_HTTP_HEADER_SET_COOKIE, cookie);
 
   enum MHD_Result ret = MHD_queue_response(connection, w->status, response);
 
@@ -438,6 +462,8 @@ int main(int argc, char **argv) {
     return 1;
   }
 
+  CURL *curl = curl_easy_init();
+
   int port = atoi(argv[1]);
 
   struct MHD_Daemon *d = MHD_start_daemon(
@@ -449,5 +475,6 @@ int main(int argc, char **argv) {
   printf("Server started on port %d\n", port);
   getc(stdin);
   MHD_stop_daemon(d);
+  curl_easy_cleanup(curl);
   return 0;
 }
