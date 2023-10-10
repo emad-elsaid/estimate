@@ -58,6 +58,11 @@ void convertContent(char *content) {
   char *offset = content;
   while (*offset != 0) {
     char *nextOpen = moveToStart(offset);
+    if (*nextOpen == 0){
+      printString(offset, nextOpen);
+      return;
+    }
+
     printString(offset, nextOpen);
 
     offset = skipStart(nextOpen);
@@ -91,11 +96,27 @@ char *FileContent(const char *path) {
   return content;
 }
 
+void strreplace(char *c, char *replace, char with) {
+  for(char *rr = replace; *rr != 0; rr++)
+    for(char *cc = c; *cc != 0; cc++)
+      if(*cc == *rr )
+        *cc = with;
+}
+
 void processFile(char *f) {
   fprintf(stderr, "Processin file: %s\n", f);
   char *content = FileContent(f);
+
+  char *funcName = strdup(f);
+  strreplace(funcName, "/.", '_');
+  printf("View *%s() {\n", funcName);
+  printf("View writer;");
+  free(funcName);
+
   convertContent(content);
   free(content);
+
+  printf("return writer; }\n");
 }
 
 void processDir(char *dir) {
@@ -108,6 +129,13 @@ void processDir(char *dir) {
 
   char filename_qfd[100];
   struct dirent *dp;
+
+  printf(
+         "typedef struct View {"
+         "void *value;"
+         "struct View next;"
+         "} View;"
+         );
 
   while ((dp = readdir(dfd)) != NULL) {
     struct stat stbuf;
