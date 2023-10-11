@@ -7,7 +7,6 @@
 #include <curl/curl.h>
 #include <curl/easy.h>
 
-
 #define POSTBUFFERSIZE 1024
 
 // Data structures
@@ -257,13 +256,23 @@ char *ParamsGet(const Request *r, const char *key) {
   return NULL;
 }
 
+// views
+// ========
+
+#include "./views_funcs.h"
+
 // Handlers
 // =========
 
 void RootHandler(Response *w, const Request *r) {
-  if ( EnsureUser(w, r) == NULL ) return;
+  /* if ( EnsureUser(w, r) == NULL ) return; */
 
-  Render(w, "views/index.html");
+  /* Render(w, "views/index.html"); */
+
+  w->status = 200;
+  WriteHeader(w, "Content-Type", "text/html");
+  w->body = views_footer_html();
+  w->freebody = true;
 }
 
 void GetUsernameHandler(Response *w, const Request *r) {

@@ -1,21 +1,22 @@
 LDFLAGS=`pkg-config --libs --cflags --static libmicrohttpd uuid libcurl`
-CCFLAGS = -O3 -Wextra -Wall $LDFLAGS
+CCFLAGS = -Wextra -Wall $LDFLAGS
 
-estimate: estimate.c
+.PHONY: run, run-check, run-test, install, clean
+
 compile-views: compile-views.c
 
+views_funcs.c: compile-views views/*.html
+	./compile-views
+
+estimate: string.c views_funcs.c views_funcs.c
+
 test: estimate.o test.c
-
-.PHONY: run, run-check, run-test, install, clean, run-compile-views
-
-run-compile-views: compile-views
-	valgrind ./compile-views
 
 run: estimate
 	./estimate 4000
 
 run-check: estimate
-	valgrind --leak-check=full ./estimate 4000
+	valgrind --leak-check=full --track-origins=yes ./estimate 4000
 
 run-test: test
 	./test

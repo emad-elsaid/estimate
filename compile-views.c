@@ -34,36 +34,38 @@ char *skipStr(char *s, char *substr) {return s + strlen(substr);}
 char *skipStart(char *c) { return skipStr(c, TEMPLATE_START); }
 char *skipEnd(char *c) { return skipStr(c, TEMPLATE_END); }
 
-void printFromTo(char *start, char *end) {
+void printFromTo(FILE *src, char *start, char *end) {
   while(start!=end && *start != 0 ){
-    printf("%c", *start);
+    fprintf(src, "%c", *start);
     start++;
   }
 }
 
-void printString(char *start, char *end) {
-  printf("\"");
+void printString(FILE *src, char *start, char *end) {
+  fprintf(src, "StringWrite(w, \"");
   while (start != end && *start != 0) {
     if (*start == '\"') {
-      printf("\\%c", *start);
+      fprintf(src, "\\%c", *start);
+    } else if (*start == '\n') {
+      fprintf(src, "\\n\"\n\"");
     } else {
-      printf("%c", *start);
+      fprintf(src, "%c", *start);
     }
     start++;
   }
-  printf("\"");
+  fprintf(src, "\");\n");
 }
 
-void convertContent(char *content) {
+void convertContent(FILE *src, char *content) {
   char *offset = content;
   while (*offset != 0) {
     char *nextOpen = moveToStart(offset);
     if (*nextOpen == 0){
-      printString(offset, nextOpen);
+      printString(src, offset, nextOpen);
       return;
     }
 
-    printString(offset, nextOpen);
+    printString(src, offset, nextOpen);
 
     offset = skipStart(nextOpen);
     if (*offset == 0) {
@@ -72,7 +74,7 @@ void convertContent(char *content) {
     }
 
     char *nextClose = moveToEnd(offset);
-    printFromTo(offset, nextClose);
+    printFromTo(src, offset, nextClose);
 
     offset = skipEnd(nextClose);
   }
@@ -103,39 +105,38 @@ void strreplace(char *c, char *replace, char with) {
         *cc = with;
 }
 
-void processFile(char *f) {
-  fprintf(stderr, "Processin file: %s\n", f);
+void processFile(FILE *header, FILE *src, char *f) {
+  fprintf(stderr, "Processing file: %s\n", f);
   char *content = FileContent(f);
 
   char *funcName = strdup(f);
   strreplace(funcName, "/.", '_');
-  printf("View *%s() {\n", funcName);
-  printf("View writer;");
+  fprintf(header, "char *%s();\n", funcName);
+  fprintf(src, "char *%s() {\n", funcName);
+  fprintf(src, "String *w = StringNew(NULL);\n");
   free(funcName);
 
-  convertContent(content);
+  convertContent(src, content);
   free(content);
 
-  printf("return writer; }\n");
+  fprintf(src, "char *ret = w->value;free(w);return ret; }\n");
 }
 
 void processDir(char *dir) {
   DIR *dfd;
-
   if ((dfd = opendir(dir)) == NULL) {
     fprintf(stderr, "Can't open %s\n", dir);
     return;
   }
 
+  FILE *header = fopen("views_funcs.h", "w");
+  FILE *src = fopen("views_funcs.c", "w");
+
   char filename_qfd[100];
   struct dirent *dp;
 
-  printf(
-         "typedef struct View {"
-         "void *value;"
-         "struct View next;"
-         "} View;"
-         );
+  fprintf(header, "#include \"./string.h\"\n");
+  fprintf(src, "#include \"./string.h\"\n");
 
   while ((dp = readdir(dfd)) != NULL) {
     struct stat stbuf;
@@ -148,10 +149,12 @@ void processDir(char *dir) {
     if ((stbuf.st_mode & S_IFMT) == S_IFDIR) {
       continue;
     } else {
-      processFile(filename_qfd);
+      processFile(header, src, filename_qfd);
     }
   }
 
+  fclose(header);
+  fclose(src);
   closedir(dfd);
 }
 
