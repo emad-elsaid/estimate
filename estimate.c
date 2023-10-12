@@ -6,6 +6,7 @@
 #include <uuid/uuid.h>
 #include <curl/curl.h>
 #include <curl/easy.h>
+#include "./string.h"
 
 #define POSTBUFFERSIZE 1024
 
@@ -60,6 +61,29 @@ typedef struct Board {
 
 // Helpers
 // ========
+
+void CharConcatAndFree(char **dest, ...) {
+  va_list ptr;
+  va_start(ptr, dest);
+
+  char *s;
+
+  while((s = va_arg(ptr, char *)) != NULL) {
+    int destlen = (*dest == NULL || **dest == 0) ? 0 : strlen(*dest);
+    char *newdest = (char *)malloc(destlen + strlen(s) + 1);
+    if (destlen > 0) {
+      strcpy(newdest, *dest);
+      strcat(newdest, s);
+      free(*dest);
+    } else {
+      strcat(newdest, s);
+    }
+    free(s);
+    *dest = newdest;
+  }
+
+  va_end(ptr);
+}
 
 void HashSet(Hash **r, char *key, char *value) {
   Hash *h = malloc(sizeof(Hash));
@@ -271,7 +295,11 @@ void RootHandler(Response *w, const Request *r) {
 
   w->status = 200;
   WriteHeader(w, "Content-Type", "text/html");
-  w->body = views_footer_html();
+  w->body = NULL;
+  CharConcatAndFree((char **) &w->body,
+                    views_header_html(),
+                    views_footer_html(),
+                    NULL);
   w->freebody = true;
 }
 

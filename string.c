@@ -1,6 +1,7 @@
-#include <string.h>
-#include <stdlib.h>
 #include "./string.h"
+#include <stdarg.h>
+#include <stdlib.h>
+#include <string.h>
 
 String *StringNew(char *c) {
   String *s = (String*) malloc(sizeof(String));
