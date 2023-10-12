@@ -70,7 +70,7 @@ void CharConcatAndFree(char **dest, ...) {
 
   while((s = va_arg(ptr, char *)) != NULL) {
     int destlen = (*dest == NULL || **dest == 0) ? 0 : strlen(*dest);
-    char *newdest = (char *)malloc(destlen + strlen(s) + 1);
+    char *newdest = (char *)calloc(1, destlen + strlen(s) + 1);
     if (destlen > 0) {
       strcpy(newdest, *dest);
       strcat(newdest, s);
@@ -295,17 +295,21 @@ void RootHandler(Response *w, const Request *r) {
 
   w->status = 200;
   WriteHeader(w, "Content-Type", "text/html");
+
   w->body = NULL;
-  CharConcatAndFree((char **) &w->body,
-                    views_header_html(),
-                    views_footer_html(),
-                    NULL);
+  CharConcatAndFree((char **)&w->body, views_header_html(), views_footer_html(), NULL);
   w->freebody = true;
 }
 
 void GetUsernameHandler(Response *w, const Request *r) {
-  HashPrint(r->cookie);
-  Render(w, "views/username.html");
+  w->status = 200;
+  w->body = NULL;
+  CharConcatAndFree((char **)&w->body,
+                    views_header_html(),
+                    views_username_html(),
+                    views_footer_html(),
+                    NULL);
+  w->freebody = true;
 }
 
 void PostUsernameHandler(Response *w, const Request *r) {

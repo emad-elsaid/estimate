@@ -34,6 +34,15 @@ char *skipStr(char *s, char *substr) {return s + strlen(substr);}
 char *skipStart(char *c) { return skipStr(c, TEMPLATE_START); }
 char *skipEnd(char *c) { return skipStr(c, TEMPLATE_END); }
 
+void printEval(FILE *src, char *start, char *end) {
+  fprintf(src, "StringWrite(w, ");
+  while (start != end && *start != 0) {
+    fprintf(src, "%c", *start);
+    start++;
+  }
+  fprintf(src, ");\n");
+}
+
 void printFromTo(FILE *src, char *start, char *end) {
   while(start!=end && *start != 0 ){
     fprintf(src, "%c", *start);
@@ -74,7 +83,11 @@ void convertContent(FILE *src, char *content) {
     }
 
     char *nextClose = moveToEnd(offset);
-    printFromTo(src, offset, nextClose);
+    if(*offset == '='){
+      printEval(src, offset+1, nextClose);
+    }else{
+      printFromTo(src, offset, nextClose);
+    }
 
     offset = skipEnd(nextClose);
   }
@@ -119,7 +132,7 @@ void processFile(FILE *header, FILE *src, char *f) {
   convertContent(src, content);
   free(content);
 
-  fprintf(src, "char *ret = w->value;free(w);return ret; }\n");
+  fprintf(src, "char *ret = w->value;\nfree(w);\nreturn ret;\n }\n");
 }
 
 void processDir(char *dir) {
