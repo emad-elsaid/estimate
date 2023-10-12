@@ -289,19 +289,23 @@ char *ParamsGet(const Request *r, const char *key) {
 // =========
 
 void RootHandler(Response *w, const Request *r) {
-  /* if ( EnsureUser(w, r) == NULL ) return; */
+  if ( EnsureUser(w, r) == NULL ) return;
 
-  /* Render(w, "views/index.html"); */
+  Render(w, "views/index.html");
 
-  w->status = 200;
   WriteHeader(w, "Content-Type", "text/html");
-
+  w->status = 200;
   w->body = NULL;
-  CharConcatAndFree((char **)&w->body, views_header_html(), views_footer_html(), NULL);
+  CharConcatAndFree((char **)&w->body,
+                    views_header_html(),
+                    views_footer_html(),
+                    NULL);
   w->freebody = true;
 }
 
 void GetUsernameHandler(Response *w, const Request *r) {
+  WriteHeader(w, "Content-Type", "text/html");
+
   w->status = 200;
   w->body = NULL;
   CharConcatAndFree((char **)&w->body,
