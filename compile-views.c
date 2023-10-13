@@ -56,7 +56,7 @@ void printString(FILE *src, char *start, char *end) {
     if (*start == '\"') {
       fprintf(src, "\\%c", *start);
     } else if (*start == '\n') {
-      fprintf(src, "\\n\"\n\"");
+      fprintf(src, "\"\n\"");
     } else {
       fprintf(src, "%c", *start);
     }
@@ -124,8 +124,8 @@ void processFile(FILE *header, FILE *src, char *f) {
 
   char *funcName = strdup(f);
   strreplace(funcName, "/.", '_');
-  fprintf(header, "char *%s();\n", funcName);
-  fprintf(src, "char *%s() {\n", funcName);
+  fprintf(header, "char *%s(void *);\n", funcName);
+  fprintf(src, "char *%s(void *input) {\n", funcName);
   fprintf(src, "String *w = StringNew(NULL);\n");
   free(funcName);
 
@@ -149,7 +149,7 @@ void processDir(char *dir) {
   struct dirent *dp;
 
   fprintf(header, "#include \"./string.h\"\n");
-  fprintf(src, "#include \"./string.h\"\n");
+  fprintf(src, "#include \"views_includes.h\"\n#include \"./string.h\"\n");
 
   while ((dp = readdir(dfd)) != NULL) {
     struct stat stbuf;

@@ -6,61 +6,15 @@
 #include <uuid/uuid.h>
 #include <curl/curl.h>
 #include <curl/easy.h>
-#include "./string.h"
+#include "estimate.h"
+#include "string.h"
+#include "./views_funcs.h"
 
-#define POSTBUFFERSIZE 1024
+Hash *boards = NULL;
 
-// Data structures
-// ===================================================================
-
-typedef enum Method {
-  METHOD_INVALID,
-  METHOD_GET,
-  METHOD_POST
-} Method;
-
-typedef int Status;
-
-typedef struct Hash {
-  char *key;
-  char *value;
-  struct Hash *next;
-} Hash;
-
-typedef struct Memory {
-  void *memory;
-  struct Memory *next;
-} Memory;
-
-typedef struct Request {
-  Method method;
-  const char *path;
-  Hash *cookie;
-  Hash *body;
-  // To track heap memory and free it later
-  Memory *memory;
-  // This section is for MHD variables
-  struct MHD_PostProcessor *postprocessor;
-} Request;
-
-typedef struct Response {
-  Status status;
-  void *body;
-  bool freebody;
-  Hash *headers;
-  Hash *cookie;
-  // To track heap memory and free it later
-  Memory *memory;
-} Response;
-
-typedef char *UserID;
-
-typedef struct Board {
-
-} Board;
-
-// Helpers
-// ========
+bool BoardUserVoted(Board *board, UUID userid) {
+  return false;
+}
 
 void CharConcatAndFree(char **dest, ...) {
   va_list ptr;
@@ -85,7 +39,7 @@ void CharConcatAndFree(char **dest, ...) {
   va_end(ptr);
 }
 
-void HashSet(Hash **r, char *key, char *value) {
+void HashSet(Hash **r, char *key, void *value) {
   Hash *h = malloc(sizeof(Hash));
   h->key = key;
   h->value = value;
@@ -93,7 +47,7 @@ void HashSet(Hash **r, char *key, char *value) {
   *r = h;
 }
 
-char *HashGet(Hash *r, char *key) {
+void *HashGet(Hash *r, void *key) {
   for (Hash *c = r; c != NULL; c = c->next) {
     if (strcmp(c->key, key) == 0)
       return c->value;
@@ -202,39 +156,12 @@ bool PathIs(const Request *r, const char *path) {
   return strcmp(r->path, path) == 0;
 }
 
-void Render(Response *w, const char *path, ...) {
-  char *view = FileContent(path);
-  if ( view == NULL ) return;
-
-  char *header = FileContent("views/header.html");
-  if ( header == NULL) {
-    free(view);
-    return;
-  }
-
-  char *footer = FileContent("views/footer.html");
-  if ( footer == NULL ) {
-    free(view);
-    free(header);
-    return;
-  }
-
-  char *page = calloc(strlen(view)+strlen(header)+strlen(footer)+1, sizeof(char));
-  sprintf(page, "%s%s%s", header, view, footer);
-
-  free(view);
-  free(header);
-  free(footer);
-
-  w->status = 200;
-  WriteHeader(w, "Content-Type", "text/html");
-  w->body = page;
-  w->freebody = true;
-}
-
 char *h(char *input) {
-  // TODO escape input string and return new string
-  return input;
+  char *escaped = curl_easy_escape(NULL, input, 0);
+  char *out = strdup(escaped);
+  curl_free(escaped);
+
+  return out;
 }
 
 void Redirect(Response *w, char *path) {
@@ -247,7 +174,7 @@ void Redirect(Response *w, char *path) {
   WriteHeader(w, "Location", path);
 }
 
-UserID EnsureUser(Response *w, const Request *r) {
+UUID EnsureUser(Response *w, const Request *r) {
   char *userid = HashGet(r->cookie, "userid");
   if( userid == NULL ) {
     char *path = strdup(r->path);
@@ -267,12 +194,12 @@ Board *EnsureBoard(Response *w, const Request *r) {
   return NULL;
 }
 
-UserID NewUserID() {
+UUID NewUUID() {
   uuid_t uuid;
   uuid_generate(uuid);
-  char *userid = malloc(UUID_STR_LEN);
-  uuid_unparse_lower(uuid, userid);
-  return userid;
+  char *str = malloc(UUID_STR_LEN);
+  uuid_unparse_lower(uuid, str);
+  return str;
 }
 
 char *ParamsGet(const Request *r, const char *key) {
@@ -280,38 +207,31 @@ char *ParamsGet(const Request *r, const char *key) {
   return NULL;
 }
 
-// views
-// ========
-
-#include "./views_funcs.h"
-
 // Handlers
 // =========
 
+Board defaults = {
+    .id = NULL,
+    .options_str = "1\n2\n3\n5\n8",
+};
+
 void RootHandler(Response *w, const Request *r) {
-  if ( EnsureUser(w, r) == NULL ) return;
+  if (EnsureUser(w, r) == NULL)
+    return;
 
-  Render(w, "views/index.html");
-
-  WriteHeader(w, "Content-Type", "text/html");
-  w->status = 200;
-  w->body = NULL;
   CharConcatAndFree((char **)&w->body,
-                    views_header_html(),
-                    views_footer_html(),
+                    views_header_html(NULL),
+                    views_index_html((void *) &defaults),
+                    views_footer_html(NULL),
                     NULL);
   w->freebody = true;
 }
 
 void GetUsernameHandler(Response *w, const Request *r) {
-  WriteHeader(w, "Content-Type", "text/html");
-
-  w->status = 200;
-  w->body = NULL;
   CharConcatAndFree((char **)&w->body,
-                    views_header_html(),
-                    views_username_html(),
-                    views_footer_html(),
+                    views_header_html(NULL),
+                    views_username_html(NULL),
+                    views_footer_html(NULL),
                     NULL);
   w->freebody = true;
 }
@@ -319,7 +239,7 @@ void GetUsernameHandler(Response *w, const Request *r) {
 void PostUsernameHandler(Response *w, const Request *r) {
   if (HashGet(r->cookie, "userid") == NULL) {
     HashSet(&w->cookie, "username", HashGet(r->body, "username"));
-    UserID userid = NewUserID();
+    UUID userid = NewUUID();
     MemoryTrack(&w->memory, userid);
     HashSet(&w->cookie, "userid", userid);
   }
@@ -330,11 +250,43 @@ void PostUsernameHandler(Response *w, const Request *r) {
 }
 
 void GetBoardHandler(Response *w, const Request *r) {
-  // TODO
+  UUID userid;
+  if ((userid = EnsureUser(w, r)) == NULL)
+    return;
+
+  Board *board;
+  if( (board = EnsureBoard(w,r)) == NULL)
+    return;
+
+  if(!(BoardUserVoted(board, userid) || strcmp(board->userid, userid) == 0)){}
+
+  return CharConcatAndFree(w->body,
+                           views_header_html(NULL),
+                           views_board_html(board),
+                           views_footer_html(NULL),
+                           NULL);
 }
 
 void PostBoardsHandler(Response *w, const Request *r) {
-  // TODO
+  UUID userid;
+  if ((userid = EnsureUser(w, r)) == NULL)
+    return;
+
+  Board *board = (Board *)calloc(1, sizeof(Board));
+  board->id = NewUUID();
+  board->userid = strdup(userid);
+  board->options_str = ParamsGet(r, "options");
+  board->hidden = true;
+  board->updated_at = time(NULL);
+
+  HashSet(&boards, board->id, board);
+
+  char *prefix = "/boards?board=";
+  char *path = calloc(1, strlen(board->id)+ strlen(prefix)+1);
+  sprintf(path, "%s%s",prefix, board->id);
+  MemoryTrack(&w->memory, path);
+
+  Redirect(w, path);
 }
 
 void GetBoardEditHandler(Response *w, const Request *r) {
@@ -373,7 +325,6 @@ void GetBoardCheckUpdateHandler(Response *w, const Request *r) {
 // this is the main router, it inspects the request properties and calls the
 // correct handler function
 // ==============================================================================
-
 void Router(Response *w, const Request *r) {
   bool is_GET = r->method == METHOD_GET;
   bool is_POST = r->method == METHOD_POST;
@@ -400,6 +351,24 @@ void Router(Response *w, const Request *r) {
   w->status = 404;
   w->body = "Page Not Found";
 }
+
+void Handler(Response *w, const Request *r) {
+  Router(w, r);
+
+  if (w->status == 0) {
+    if ( w->body == NULL || *(char *)w->body == 0) {
+      w->status = 204;
+    }else{
+      w->status = 200; // no content
+    }
+  }
+
+  if ( HashGet(w->headers, "Content-Type") == NULL )
+    WriteHeader(w, "Content-Type", "text/html");
+
+  printf("%d %s ... %d\n", r->method, r->path, w->status);
+}
+
 
 // Setup to invoke router
 // ==================================================================
@@ -497,10 +466,7 @@ static enum MHD_Result AccessCallback(void *cls, struct MHD_Connection *connecti
 
   Response *w = (Response *)calloc(1, sizeof(Response));
 
-  Router(w, r);
-  printf("%d %s ... %d\n", r->method, r->path, w->status);
-
-  if (w->status == 0) w->status = 204; // no content
+  Handler(w, r);
 
   enum MHD_ResponseMemoryMode freebody =
       (w->freebody) ? MHD_RESPMEM_MUST_FREE : MHD_RESPMEM_PERSISTENT;

@@ -1,12 +1,17 @@
+<% Board *board = input; %>
 <section class="section">
   <div class="container">
 
-    <form action="/boards/<%= board[:id] %>" method="POST">
+    <% if( board->id ){ %>
+    <form action="/boards/<%= board->id %>" method="POST">
+    <% }else{ %>
+    <form action="/boards" method="POST">
+    <% } %>
 
       <div class="field">
         <label class="label" for="columns">Options</label>
         <div class="control">
-          <textarea class="textarea" placeholder="Each line an option..." name="options" id="columns" autofocus><%=h board[:options].join("\n") %></textarea>
+          <textarea class="textarea" placeholder="Each line an option..." name="options" id="columns" autofocus><%= board->options_str %></textarea>
         </div>
       </div>
 

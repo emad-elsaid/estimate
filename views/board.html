@@ -1,56 +1,61 @@
+<% Board *board = input; %>
+<% UUID userid = ""; %>
 <div class="container">
   <div class="section">
-    <% if board[:userid]==userid %>
-      <a class="button" href="/boards/<%= board[:id] %>/edit">✏️ Edit</a>
-      <% unless board[:votes].empty? %>
-      <a class="button is-link is-light" href="/boards/<%= board[:id] %>/reset" title="This will clear votes and ask users to vote again">✋ Request New Votes</a>
-      <% end %>
-      <% if board[:hidden] %>
-        <a class="button is-info is-light" href="/boards/<%= board[:id] %>/show">👁️ Show Votes</a>
-      <% else %>
-        <a class="button is-info is-light" href="/boards/<%= board[:id] %>/hide">👁️ Hide Votes</a>
-      <% end %>
-    <% end %>
-    <a class="button is-success is-light" href="/boards/<%= board[:id] %>/vote">🗳️ Vote</a>
+    <% if( strcmp(board->userid, userid)==0 ){ %>
+      <a class="button" href="/boards?board=<%= board->id %>/edit">✏️ Edit</a>
+
+      <% if( board->votes != NULL ){ %>
+      <a class="button is-link is-light" href="/boards/reset?board=<%= board->id %>" title="This will clear votes and ask users to vote again">✋ Request New Votes</a>
+      <% } %>
+
+      <% if( board->hidden ){ %>
+        <a class="button is-info is-light" href="/boards/show?board=<%= board->id %>">👁️ Show Votes</a>
+      <% }else{ %>
+        <a class="button is-info is-light" href="/boards/hide?board=<%= board->id %>">👁️ Hide Votes</a>
+      <% } %>
+
+    <% } %>
+    <a class="button is-success is-light" href="/boards/vote?board=<%= board->id %>">🗳️ Vote</a>
   </div>
 
   <div class="section">
 
-    <% if board[:votes].empty?  %>
+    <% if(board->votes == NULL){  %>
       <div class="notification">
         No votes yet. Waiting for the team to vote...
       </div>
-    <% else %>
+    <% }else{ %>
       <h1 class="title">
-        🗳️ <%= board[:votes].count %> Votes
-        <% unless board[:hidden] %>
+        🗳️ <%= board->votes_count %> Votes
+        <% if(! board->hidden ){ %>
           | <% board[:votes].values.group_by(&:itself).each { |k,v| %> <%= k %> <sub>×<%= v.count %></sub> <% } %>
-        <% end %>
+        <% } %>
       </h1>
-    <% end %>
+    <% } %>
 
     <div class="columns is-multiline is-centered">
-      <% board[:votes].each do |userid, vote| %>
+      <% for(Vote *vote = board->votes; vote != NULL; vote = vote->next){ %>
         <div class="column is-one-quarter">
           <div class="card">
             <div class="card-content has-text-centered">
               <div class="title" style="font-size: 9em;<%= 'filter: blur(1rem);' if board[:hidden] %>">
-                <% if board[:hidden] %>
+                <% if(board->hidden){ %>
                   X
-                <% else %>
-                  <%=h vote %>
-                <% end %>
+                <% }else{ %>
+                  <%=h(vote) %>
+                <% } %>
               </div>
               <div class="subtitle">
-                <%=h userid %>
+                <%= h(userid) %>
               </div>
             </div>
           </div>
         </div>
-      <% end %>
+      <% } %>
     </div>
 
   </div>
 </div>
 
-<iframe frameborder="0" src="/boards/<%= board[:id] %>/check/<%= board[:updated_at] %>" style="width:0;height:0;display:absolute;"></iframe>
+<iframe frameborder="0" src="/boards/<%= board->id %>/check/<%= board->updated_at %>" style="width:0;height:0;display:absolute;"></iframe>
