@@ -26,6 +26,7 @@ typedef struct Memory {
 typedef struct Request {
   Method method;
   const char *path;
+  Hash *params;
   Hash *cookie;
   Hash *body;
   // To track heap memory and free it later
@@ -59,5 +60,6 @@ typedef struct Board {
   bool hidden;
   Vote *votes;
   int votes_count;
+  Hash *votes_stats;
   time_t updated_at;
 } Board;

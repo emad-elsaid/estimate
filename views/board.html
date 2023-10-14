@@ -29,7 +29,9 @@
       <h1 class="title">
         🗳️ <%= intToChar(board->votes_count) %> Votes
         <% if(! board->hidden ){ %>
-          | <% board[:votes].values.group_by(&:itself).each { |k,v| %> <%= k %> <sub>×<%= v.count %></sub> <% } %>
+          | <% for(Hash *stat=board->votes_stats; stat != NULL; stat = stat->next){ %>
+              <%= stat->key %> <sub>×<%= intToChar(*(int*) stat->value) %></sub>
+            <% } %>
         <% } %>
       </h1>
     <% } %>

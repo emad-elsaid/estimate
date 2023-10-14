@@ -58,7 +58,7 @@ void *HashGet(Hash *r, void *key) {
 
 void HashPrint(Hash *r) {
   for (Hash *c = r; c != NULL; c = c->next)
-    printf("%s -> %s\n", c->key, c->key);
+    printf("%s -> %s\n", c->key, (char *) c->value);
 }
 
 void HashFree(Hash *r) {
@@ -86,6 +86,7 @@ void MemoryFree(Memory *r) {
 }
 
 void RequestFree(Request *r) {
+  HashFree(r->params);
   HashFree(r->body);
   HashFree(r->cookie);
   MemoryFree(r->memory);
@@ -182,8 +183,19 @@ UUID EnsureUser(Response *w, const Request *r) {
 }
 
 Board *EnsureBoard(Response *w, const Request *r) {
-  // TODO if board ID from request doesn't exist in memory redirect to / and return null, if board exist return it
-  return NULL;
+  UUID boardid = HashGet(r->params, "board");
+  if(boardid == NULL){
+    Redirect(w, "/");
+    return NULL;
+  }
+
+  Board *board = HashGet(boards, boardid);
+  if(board == NULL){
+    Redirect(w, "/");
+    return NULL;
+  }
+
+  return board;
 }
 
 UUID NewUUID() {
@@ -252,11 +264,11 @@ void GetBoardHandler(Response *w, const Request *r) {
 
   if(!(BoardUserVoted(board, userid) || strcmp(board->userid, userid) == 0)){}
 
-  return CharConcatAndFree(w->body,
-                           views_header_html(NULL),
-                           views_board_html(board),
-                           views_footer_html(NULL),
-                           NULL);
+  CharConcatAndFree((char **)&w->body,
+                    views_header_html(NULL),
+                    views_board_html(board),
+                    views_footer_html(NULL),
+                    NULL);
 }
 
 void PostBoardsHandler(Response *w, const Request *r) {
@@ -385,7 +397,7 @@ enum MHD_Result post_iterator(void *cls, enum MHD_ValueKind kind,
   return MHD_YES;
 }
 
-enum MHD_Result cookie_iterator(void *cls, enum MHD_ValueKind kind,
+enum MHD_Result value_iterator(void *cls, enum MHD_ValueKind kind,
                                 const char *key, const char *value) {
 
   Request *r = cls;
@@ -395,7 +407,11 @@ enum MHD_Result cookie_iterator(void *cls, enum MHD_ValueKind kind,
   char *k = strdup(key);
   MemoryTrack(&r->memory, k);
 
-  HashSet(&r->cookie, k, unserialized_value);
+  if( kind == MHD_COOKIE_KIND ) {
+    HashSet(&r->cookie, k, unserialized_value);
+  } else if (kind == MHD_GET_ARGUMENT_KIND) {
+    HashSet(&r->params, k, unserialized_value);
+  }
 
   return MHD_YES;
 }
@@ -404,7 +420,8 @@ void request_completed(void *cls, struct MHD_Connection *connection,
                        void **con_cls, enum MHD_RequestTerminationCode toe) {
   struct Request *r = *con_cls;
 
-  if (NULL == r) return;
+  if (NULL == r)
+    return;
 
   if (r->method == METHOD_POST) {
     MHD_destroy_post_processor(r->postprocessor);
@@ -454,7 +471,7 @@ static enum MHD_Result AccessCallback(void *cls, struct MHD_Connection *connecti
     return MHD_YES;
   }
 
-  MHD_get_connection_values(connection, MHD_COOKIE_KIND, &cookie_iterator, r);
+  MHD_get_connection_values(connection, MHD_COOKIE_KIND|MHD_GET_ARGUMENT_KIND, &value_iterator, r);
 
   Response *w = (Response *)calloc(1, sizeof(Response));
 

@@ -150,11 +150,13 @@ StringWrite(w, " Votes"
 "        ");
  if(! board->hidden ){ StringWrite(w, ""
 "          | ");
- board[:votes].values.group_by(&:itself).each { |k,v| StringWrite(w, " ");
-StringWrite(w,  k );
+ for(Hash *stat=board->votes_stats; stat != NULL; stat = stat->next){ StringWrite(w, ""
+"              ");
+StringWrite(w,  stat->key );
 StringWrite(w, " <sub>×");
-StringWrite(w,  v.count );
-StringWrite(w, "</sub> ");
+StringWrite(w,  intToChar(*(int*) stat->value) );
+StringWrite(w, "</sub>"
+"            ");
  } StringWrite(w, ""
 "        ");
  } StringWrite(w, ""
