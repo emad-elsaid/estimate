@@ -92,6 +92,47 @@ char *ret = w->value;
 free(w);
 return ret;
  }
+char *views_vote_html(void *input) {
+String *w = StringNew(NULL);
+StringWrite(w, "");
+ Board *board = input; StringWrite(w, ""
+"<section class=\"section\">"
+"  <div class=\"container\">"
+"    <h1 class=\"title\">"
+"      Vote"
+"    </h1>"
+""
+"    <div class=\"columns is-multiline\">"
+""
+"      ");
+ for(Option *option=board->options; option != NULL; option = option->next){ StringWrite(w, ""
+"        <div class=\"column is-one-third\">"
+"          <div class=\"card\">"
+"            <div class=\"card-content has-text-centered\">"
+"              <form action=\"/boards/vote?board=");
+StringWrite(w,  board->id );
+StringWrite(w, "\" method=\"POST\">"
+"                <input name=\"vote\" type=\"hidden\" value=\"");
+StringWrite(w,  option->value );
+StringWrite(w, "\"/>"
+"                <button class=\"button is-ghost\" style=\"font-size: 5em;\" type=\"submit\">");
+StringWrite(w,  option->value );
+StringWrite(w, "</button>"
+"              </form>"
+"            </div>"
+"          </div>"
+"        </div>"
+"      ");
+ } StringWrite(w, ""
+""
+"    </div>"
+"  </div>"
+"</section>"
+"");
+char *ret = w->value;
+free(w);
+return ret;
+ }
 char *views_board_html(void *input) {
 String *w = StringNew(NULL);
 StringWrite(w, "");

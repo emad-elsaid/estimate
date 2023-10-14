@@ -53,9 +53,15 @@ typedef struct Vote {
   struct Vote *next;
 } Vote;
 
+typedef struct Option {
+  char *value;
+  struct Option *next;
+} Option;
+
 typedef struct Board {
   UUID id;
   UUID userid;
+  Option *options;
   char *options_str;
   bool hidden;
   Vote *votes;
