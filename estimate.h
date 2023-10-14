@@ -47,6 +47,8 @@ typedef struct Response {
 typedef char *UUID;
 
 typedef struct Vote {
+  UUID user;
+  char *vote;
   struct Vote *next;
 } Vote;
 
@@ -59,5 +61,3 @@ typedef struct Board {
   int votes_count;
   time_t updated_at;
 } Board;
-
-char *h(char *);

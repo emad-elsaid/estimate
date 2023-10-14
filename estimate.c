@@ -156,14 +156,6 @@ bool PathIs(const Request *r, const char *path) {
   return strcmp(r->path, path) == 0;
 }
 
-char *h(char *input) {
-  char *escaped = curl_easy_escape(NULL, input, 0);
-  char *out = strdup(escaped);
-  curl_free(escaped);
-
-  return out;
-}
-
 void Redirect(Response *w, char *path) {
   // This list uses SEE OTHER instead of FOUND as POST requests responding with
   // FOUND means the path changes without method changes in most cases we want

@@ -145,7 +145,7 @@ StringWrite(w, "\">🗳️ Vote</a>"
  }else{ StringWrite(w, ""
 "      <h1 class=\"title\">"
 "        🗳️ ");
-StringWrite(w,  board->votes_count );
+StringWrite(w,  intToChar(board->votes_count) );
 StringWrite(w, " Votes"
 "        ");
  if(! board->hidden ){ StringWrite(w, ""
@@ -169,7 +169,7 @@ StringWrite(w, "</sub> ");
 "          <div class=\"card\">"
 "            <div class=\"card-content has-text-centered\">"
 "              <div class=\"title\" style=\"font-size: 9em;");
-StringWrite(w,  'filter: blur(1rem);' if board[:hidden] );
+StringWrite(w,  (board->hidden)? "filter: blur(1rem);" : "" );
 StringWrite(w, "\">"
 "                ");
  if(board->hidden){ StringWrite(w, ""
@@ -177,30 +177,28 @@ StringWrite(w, "\">"
 "                ");
  }else{ StringWrite(w, ""
 "                  ");
-StringWrite(w, h(vote) );
+StringWrite(w,  h(vote->vote) );
 StringWrite(w, ""
 "                ");
  } StringWrite(w, ""
 "              </div>"
-"              <div class=\"subtitle\">"
-"                ");
+"              <div class=\"subtitle\"> ");
 StringWrite(w,  h(userid) );
-StringWrite(w, ""
-"              </div>"
+StringWrite(w, " </div>"
 "            </div>"
 "          </div>"
 "        </div>"
-"      ");
+"        ");
  } StringWrite(w, ""
 "    </div>"
 ""
 "  </div>"
 "</div>"
 ""
-"<iframe frameborder=\"0\" src=\"/boards/");
+"<iframe frameborder=\"0\" src=\"/boards/check?board=");
 StringWrite(w,  board->id );
-StringWrite(w, "/check/");
-StringWrite(w,  board->updated_at );
+StringWrite(w, "&time=");
+StringWrite(w,  timeToChar(board->updated_at) );
 StringWrite(w, "\" style=\"width:0;height:0;display:absolute;\"></iframe>"
 "");
 char *ret = w->value;

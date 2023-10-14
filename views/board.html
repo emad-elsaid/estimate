@@ -27,7 +27,7 @@
       </div>
     <% }else{ %>
       <h1 class="title">
-        🗳️ <%= board->votes_count %> Votes
+        🗳️ <%= intToChar(board->votes_count) %> Votes
         <% if(! board->hidden ){ %>
           | <% board[:votes].values.group_by(&:itself).each { |k,v| %> <%= k %> <sub>×<%= v.count %></sub> <% } %>
         <% } %>
@@ -39,23 +39,21 @@
         <div class="column is-one-quarter">
           <div class="card">
             <div class="card-content has-text-centered">
-              <div class="title" style="font-size: 9em;<%= 'filter: blur(1rem);' if board[:hidden] %>">
+              <div class="title" style="font-size: 9em;<%= (board->hidden)? "filter: blur(1rem);" : "" %>">
                 <% if(board->hidden){ %>
                   X
                 <% }else{ %>
-                  <%=h(vote) %>
+                  <%= h(vote->vote) %>
                 <% } %>
               </div>
-              <div class="subtitle">
-                <%= h(userid) %>
-              </div>
+              <div class="subtitle"> <%= h(userid) %> </div>
             </div>
           </div>
         </div>
-      <% } %>
+        <% } %>
     </div>
 
   </div>
 </div>
 
-<iframe frameborder="0" src="/boards/<%= board->id %>/check/<%= board->updated_at %>" style="width:0;height:0;display:absolute;"></iframe>
+<iframe frameborder="0" src="/boards/check?board=<%= board->id %>&time=<%= timeToChar(board->updated_at) %>" style="width:0;height:0;display:absolute;"></iframe>

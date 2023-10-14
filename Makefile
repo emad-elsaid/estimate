@@ -8,7 +8,7 @@ compile-views: compile-views.c
 views_funcs.c: compile-views views/*.html
 	./compile-views
 
-estimate: string.c views_funcs.c views_funcs.c
+estimate: helpers.c  string.c views_funcs.c views_funcs.c
 
 test: estimate.o test.c
 
