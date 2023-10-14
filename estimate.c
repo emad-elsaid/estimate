@@ -269,6 +269,7 @@ void GetBoardHandler(Response *w, const Request *r) {
                     views_board_html(board),
                     views_footer_html(NULL),
                     NULL);
+  w->freebody = true;
 }
 
 void PostBoardsHandler(Response *w, const Request *r) {
