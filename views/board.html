@@ -1,5 +1,8 @@
-<% Board *board = input; %>
-<% UUID userid = ""; %>
+<%
+BoardPage page = *(BoardPage *)input;
+Board *board = page.board;
+UUID userid = page.user;
+%>
 <div class="container">
   <div class="section">
     <% if( strcmp(board->userid, userid)==0 ){ %>

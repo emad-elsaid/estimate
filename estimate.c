@@ -211,12 +211,58 @@ char *ParamsGet(const Request *r, const char *key) {
   return NULL;
 }
 
+void BoardFreeOptions(Option *options) {
+  for (Option *option = options; option != NULL; ) {
+    Option *next = option = option->next;
+    free(option->value);
+    free(option);
+    option = next;
+  }
+}
+
+void BoardSetOptions(Board *board, char *options_str) {
+  if(options_str == NULL) return;
+
+  printf("%s", options_str);
+
+  board->options_str = strdup(options_str);
+  Option *old_options = board->options;
+  char *saveptr;
+  char *val = strtok_r(options_str, "\n", &saveptr);
+
+  Option *new_options = NULL;
+  Option *last_option = NULL;
+  while(val != NULL && *val != 0) {
+    Option *opt = calloc(1, sizeof(Option));
+    opt->value = strdup(val);
+    opt->next = NULL;
+    if(new_options== NULL) {
+      new_options = opt;
+    }
+    if(last_option!=NULL) {
+      last_option->next = opt;
+    }
+    last_option = opt;
+
+    val = strtok_r(NULL, "\n", &saveptr);
+  }
+
+  board->options = new_options;
+  BoardFreeOptions(old_options);
+}
+
 // Handlers
 // =========
-
 Board defaults = {
     .id = NULL,
+    .userid = NULL,
+    .options = NULL,
     .options_str = "1\n2\n3\n5\n8",
+    .hidden = true,
+    .votes = NULL,
+    .votes_count = 0,
+    .votes_stats = NULL,
+    .updated_at = 0,
 };
 
 void RootHandler(Response *w, const Request *r) {
@@ -264,9 +310,14 @@ void GetBoardHandler(Response *w, const Request *r) {
 
   if(!(BoardUserVoted(board, userid) || strcmp(board->userid, userid) == 0)){}
 
+  BoardPage boardpage = {
+    .board = board,
+    .user = userid,
+  };
+
   CharConcatAndFree((char **)&w->body,
                     views_header_html(NULL),
-                    views_board_html(board),
+                    views_board_html(&boardpage),
                     views_footer_html(NULL),
                     NULL);
   w->freebody = true;
@@ -280,7 +331,7 @@ void PostBoardsHandler(Response *w, const Request *r) {
   Board *board = (Board *)calloc(1, sizeof(Board));
   board->id = NewUUID();
   board->userid = strdup(userid);
-  board->options_str = ParamsGet(r, "options");
+  BoardSetOptions(board, HashGet(r->body, "options"));
   board->hidden = true;
   board->updated_at = time(NULL);
 

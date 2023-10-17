@@ -69,3 +69,8 @@ typedef struct Board {
   Hash *votes_stats;
   time_t updated_at;
 } Board;
+
+typedef struct BoardPage {
+  Board *board;
+  UUID user;
+} BoardPage;

@@ -35,7 +35,10 @@ char *skipStart(char *c) { return skipStr(c, TEMPLATE_START); }
 char *skipEnd(char *c) { return skipStr(c, TEMPLATE_END); }
 
 void printEval(FILE *src, char *start, char *end) {
-  fprintf(src, "StringWrite(w, ");
+  if (start == end)
+    return;
+
+  fprintf(src, "\tStringWrite(w, ");
   while (start != end && *start != 0) {
     fprintf(src, "%c", *start);
     start++;
@@ -44,19 +47,27 @@ void printEval(FILE *src, char *start, char *end) {
 }
 
 void printFromTo(FILE *src, char *start, char *end) {
-  while(start!=end && *start != 0 ){
+  if (start == end)
+    return;
+
+  fprintf(src, "\t");
+
+  while (start != end && *start != 0) {
     fprintf(src, "%c", *start);
     start++;
   }
 }
 
 void printString(FILE *src, char *start, char *end) {
-  fprintf(src, "StringWrite(w, \"");
+  if (start == end)
+    return;
+
+  fprintf(src, "\tStringWrite(w, \"");
   while (start != end && *start != 0) {
     if (*start == '\"') {
       fprintf(src, "\\%c", *start);
     } else if (*start == '\n') {
-      fprintf(src, "\"\n\"");
+      fprintf(src, "\"\n\t\"");
     } else {
       fprintf(src, "%c", *start);
     }
@@ -126,13 +137,13 @@ void processFile(FILE *header, FILE *src, char *f) {
   strreplace(funcName, "/.", '_');
   fprintf(header, "char *%s(void *);\n", funcName);
   fprintf(src, "char *%s(void *input) {\n", funcName);
-  fprintf(src, "String *w = StringNew(NULL);\n");
+  fprintf(src, "\tString *w = StringNew(NULL);\n");
   free(funcName);
 
   convertContent(src, content);
   free(content);
 
-  fprintf(src, "char *ret = w->value;\nfree(w);\nreturn ret;\n }\n");
+  fprintf(src, "\tchar *ret = w->value;\n\tfree(w);\n\treturn ret;\n}\n");
 }
 
 void processDir(char *dir) {
