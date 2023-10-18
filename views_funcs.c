@@ -49,7 +49,7 @@ char *views_index_html(void *input) {
 	""
 	"    ");
 	 if( board->id ){ 	StringWrite(w, ""
-	"    <form action=\"/boards?board=");
+	"    <form action=\"/boards/edit?board=");
 	StringWrite(w,  board->id );
 	StringWrite(w, "\" method=\"POST\">"
 	"    ");

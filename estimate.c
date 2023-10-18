@@ -358,18 +358,38 @@ void GetBoardEditHandler(Response *w, const Request *r) {
     sprintf(path, "%s%s", prefix, board->id);
     MemoryTrack(&w->memory, path);
     Redirect(w, path);
+    return;
   }
 
-  CharConcatAndFree((char **) &w->body,
-                    views_header_html(NULL),
-                    views_index_html(board),
-                    views_footer_html(NULL),
-                    NULL);
+  CharConcatAndFree((char **)&w->body, views_header_html(NULL),
+                    views_index_html(board), views_footer_html(NULL), NULL);
   w->freebody = true;
 }
 
 void PostBoardEditHandler(Response *w, const Request *r) {
-  // TODO
+  UUID userid;
+  if ((userid = EnsureUser(w, r)) == NULL)
+    return;
+
+  Board *board;
+  if ((board = EnsureBoard(w, r)) == NULL)
+    return;
+
+  if (strcmp(board->userid, userid) != 0) {
+    char *prefix = "/boards?board=";
+    char *path = calloc(1, strlen(board->id) + strlen(prefix) + 1);
+    sprintf(path, "%s%s", prefix, board->id);
+    MemoryTrack(&w->memory, path);
+    Redirect(w, path);
+    return;
+  }
+
+  BoardSetOptions(board, HashGet(r->body, "options"));
+  board->updated_at = time(NULL);
+
+  CharConcatAndFree((char **)&w->body, views_header_html(NULL),
+                    views_index_html(board), views_footer_html(NULL), NULL);
+  w->freebody = true;
 }
 
 void GetBoardResetHandler(Response *w, const Request *r) {
