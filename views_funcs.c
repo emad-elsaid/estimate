@@ -49,7 +49,7 @@ char *views_index_html(void *input) {
 	""
 	"    ");
 	 if( board->id ){ 	StringWrite(w, ""
-	"    <form action=\"/boards/");
+	"    <form action=\"/boards?board=");
 	StringWrite(w,  board->id );
 	StringWrite(w, "\" method=\"POST\">"
 	"    ");
@@ -142,9 +142,9 @@ UUID userid = page.user;
 	"  <div class=\"section\">"
 	"    ");
 	 if( strcmp(board->userid, userid)==0 ){ 	StringWrite(w, ""
-	"      <a class=\"button\" href=\"/boards?board=");
+	"    <a class=\"button\" href=\"/boards/edit?board=");
 	StringWrite(w,  board->id );
-	StringWrite(w, "/edit\">✏️ Edit</a>"
+	StringWrite(w, "\">✏️ Edit</a>"
 	""
 	"      ");
 	 if( board->votes != NULL ){ 	StringWrite(w, ""

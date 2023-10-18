@@ -6,7 +6,7 @@ UUID userid = page.user;
 <div class="container">
   <div class="section">
     <% if( strcmp(board->userid, userid)==0 ){ %>
-      <a class="button" href="/boards?board=<%= board->id %>/edit">✏️ Edit</a>
+    <a class="button" href="/boards/edit?board=<%= board->id %>">✏️ Edit</a>
 
       <% if( board->votes != NULL ){ %>
       <a class="button is-link is-light" href="/boards/reset?board=<%= board->id %>" title="This will clear votes and ask users to vote again">✋ Request New Votes</a>

@@ -3,7 +3,7 @@
   <div class="container">
 
     <% if( board->id ){ %>
-    <form action="/boards/<%= board->id %>" method="POST">
+    <form action="/boards?board=<%= board->id %>" method="POST">
     <% }else{ %>
     <form action="/boards" method="POST">
     <% } %>
