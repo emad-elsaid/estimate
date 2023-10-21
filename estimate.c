@@ -1,3 +1,4 @@
+#include <time.h>
 #include <microhttpd.h>
 #include <stdlib.h>
 #include <string.h>
@@ -10,33 +11,10 @@
 #include "string.h"
 #include "./views_funcs.h"
 
-Hash *boards = NULL;
-
-bool BoardUserVoted(Board *board, UUID userid) {
-  return false;
-}
-
-void CharConcatAndFree(char **dest, ...) {
-  va_list ptr;
-  va_start(ptr, dest);
-
-  char *s;
-
-  while((s = va_arg(ptr, char *)) != NULL) {
-    int destlen = (*dest == NULL || **dest == 0) ? 0 : strlen(*dest);
-    char *newdest = (char *)calloc(1, destlen + strlen(s) + 1);
-    if (destlen > 0) {
-      strcpy(newdest, *dest);
-      strcat(newdest, s);
-      free(*dest);
-    } else {
-      strcat(newdest, s);
-    }
-    free(s);
-    *dest = newdest;
-  }
-
-  va_end(ptr);
+// safe string functions
+int sstrlen(char *s) {
+  if(s == NULL || *s == 0) return 0;
+  return strlen(s);
 }
 
 void HashSet(Hash **r, char *key, void *value) {
@@ -67,6 +45,57 @@ void HashFree(Hash *r) {
     free(c);
     c = n;
   }
+}
+
+Hash *boards = NULL;
+
+void BoardVotesFree(Board *b) {
+  for(Vote *v = b->votes; v != NULL;) {
+    Vote *n = v->next;
+    free(v->vote);
+    free(v->user);
+    free(v);
+    v = n;
+  }
+  b->votes_count = 0;
+}
+
+void BoardTouch(Board *b) { b->updated_at = time(NULL); }
+
+void BoardVote(Board *board, UUID userid,char *vote) {
+  // TODO check if vote exists
+  // TODO recalculate stats
+  Vote *v = calloc(1, sizeof(Vote));
+  v->vote = vote;
+  v->user = userid;
+  v->next = board->votes;
+  board->votes = v;
+  board->votes_count++;
+}
+
+bool BoardUserVoted(Board *board, UUID userid) { return false; }
+
+void CharConcatAndFree(char **dest, ...) {
+  va_list ptr;
+  va_start(ptr, dest);
+
+  char *s;
+
+  while((s = va_arg(ptr, char *)) != NULL) {
+    int destlen = sstrlen(*dest);
+    char *newdest = (char *)calloc(1, destlen + sstrlen(s) + 1);
+    if (destlen > 0) {
+      strcpy(newdest, *dest);
+      strcat(newdest, s);
+      free(*dest);
+    } else {
+      strcat(newdest, s);
+    }
+    free(s);
+    *dest = newdest;
+  }
+
+  va_end(ptr);
 }
 
 void MemoryTrack(Memory **r, void *v) {
@@ -103,7 +132,7 @@ void ResponseFree(Response *w) {
 char *CookieSerialize(char *key, char *value) {
   char *escaped_value = curl_easy_escape(NULL, value, 0);
 
-  int size = strlen(key)+1+strlen(escaped_value)+1; // key + = + value + \0
+  int size = sstrlen(key)+1+sstrlen(escaped_value)+1; // key + = + value + \0
   char *s = malloc(size);
   sprintf(s, "%s=%s", key, escaped_value);
 
@@ -213,7 +242,7 @@ char *ParamsGet(const Request *r, const char *key) {
 
 void BoardFreeOptions(Option *options) {
   for (Option *option = options; option != NULL; ) {
-    Option *next = option = option->next;
+    Option *next = option->next;
     free(option->value);
     free(option);
     option = next;
@@ -336,7 +365,7 @@ void PostBoardsHandler(Response *w, const Request *r) {
   HashSet(&boards, board->id, board);
 
   char *prefix = "/boards?board=";
-  char *path = calloc(1, strlen(board->id) + strlen(prefix) + 1);
+  char *path = calloc(1, sstrlen(board->id) + sstrlen(prefix) + 1);
   sprintf(path, "%s%s", prefix, board->id);
   MemoryTrack(&w->memory, path);
 
@@ -354,7 +383,7 @@ void GetBoardEditHandler(Response *w, const Request *r) {
 
   if (strcmp(board->userid, userid) != 0) {
     char *prefix = "/boards?board=";
-    char *path = calloc(1, strlen(board->id) + strlen(prefix) + 1);
+    char *path = calloc(1, sstrlen(board->id) + sstrlen(prefix) + 1);
     sprintf(path, "%s%s", prefix, board->id);
     MemoryTrack(&w->memory, path);
     Redirect(w, path);
@@ -375,11 +404,12 @@ void PostBoardEditHandler(Response *w, const Request *r) {
   if ((board = EnsureBoard(w, r)) == NULL)
     return;
 
+  char *prefix = "/boards?board=";
+  char *path = calloc(1, sstrlen(board->id) + sstrlen(prefix) + 1);
+  sprintf(path, "%s%s", prefix, board->id);
+  MemoryTrack(&w->memory, path);
+
   if (strcmp(board->userid, userid) != 0) {
-    char *prefix = "/boards?board=";
-    char *path = calloc(1, strlen(board->id) + strlen(prefix) + 1);
-    sprintf(path, "%s%s", prefix, board->id);
-    MemoryTrack(&w->memory, path);
     Redirect(w, path);
     return;
   }
@@ -387,20 +417,75 @@ void PostBoardEditHandler(Response *w, const Request *r) {
   BoardSetOptions(board, HashGet(r->body, "options"));
   board->updated_at = time(NULL);
 
-  CharConcatAndFree((char **)&w->body, views_header_html(NULL),
-                    views_index_html(board), views_footer_html(NULL), NULL);
-  w->freebody = true;
+  Redirect(w, path);
 }
 
 void GetBoardResetHandler(Response *w, const Request *r) {
-  // TODO
+  UUID userid;
+  if ((userid = EnsureUser(w, r)) == NULL)
+    return;
+
+  Board *board;
+  if ((board = EnsureBoard(w, r)) == NULL)
+    return;
+
+  char *prefix = "/boards?board=";
+  char *path = calloc(1, sstrlen(board->id) + sstrlen(prefix) + 1);
+  sprintf(path, "%s%s", prefix, board->id);
+  MemoryTrack(&w->memory, path);
+
+  if (strcmp(board->userid, userid) != 0) {
+    Redirect(w, path);
+    return;
+  }
+
+  BoardVotesFree(board);
+  board->hidden = true;
+  BoardTouch(board);
+
+  Redirect(w, path);
 }
 
 void GetBoardVoteHandler(Response *w, const Request *r) {
-  // TODO
+  UUID userid;
+  if ((userid = EnsureUser(w, r)) == NULL)
+    return;
+
+  Board *board;
+  if ((board = EnsureBoard(w, r)) == NULL)
+    return;
+
+  CharConcatAndFree((char **)&w->body, views_header_html(NULL),
+                    views_vote_html(board), views_footer_html(NULL), NULL);
 }
 
 void PostBoardVoteHandler(Response *w, const Request *r) {
+  UUID userid;
+  if ((userid = EnsureUser(w, r)) == NULL)
+    return;
+
+  Board *board;
+  if ((board = EnsureBoard(w, r)) == NULL)
+    return;
+
+  char *prefix = "/boards?board=";
+  char *path = calloc(1, sstrlen(board->id) + sstrlen(prefix) + 1);
+  sprintf(path, "%s%s", prefix, board->id);
+  MemoryTrack(&w->memory, path);
+
+  if (BoardUserVoted(board, userid)) {
+    Redirect(w, path);
+    return;
+  }
+
+  char *vote = HashGet(r->params, "vote");
+  if (vote == NULL) {
+    Redirect(w, path);
+    return;
+  }
+
+  BoardVote(board, userid, vote);
+
   // TODO
 }
 
@@ -571,7 +656,7 @@ static enum MHD_Result AccessCallback(void *cls, struct MHD_Connection *connecti
   enum MHD_ResponseMemoryMode freebody =
       (w->freebody) ? MHD_RESPMEM_MUST_FREE : MHD_RESPMEM_PERSISTENT;
 
-  int size = (w->body == NULL) ? 0 : strlen(w->body);
+  int size = sstrlen(w->body);
 
   struct MHD_Response *response =
       MHD_create_response_from_buffer(size, w->body, freebody);
