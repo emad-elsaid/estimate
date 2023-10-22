@@ -62,18 +62,13 @@ void BoardVotesFree(Board *b) {
 
 void BoardTouch(Board *b) { b->updated_at = time(NULL); }
 
-void BoardVote(Board *board, UUID userid,char *vote) {
-  // TODO check if vote exists
-  // TODO recalculate stats
-  Vote *v = calloc(1, sizeof(Vote));
-  v->vote = vote;
-  v->user = userid;
-  v->next = board->votes;
-  board->votes = v;
-  board->votes_count++;
-}
+bool BoardUserVoted(Board *board, UUID userid) {
+  for (Vote *v = board->votes; v != NULL; v = v->next)
+    if (strcmp(v->user, userid) == 0)
+      return true;
 
-bool BoardUserVoted(Board *board, UUID userid) { return false; }
+  return false;
+}
 
 void CharConcatAndFree(char **dest, ...) {
   va_list ptr;
@@ -249,8 +244,32 @@ void BoardFreeOptions(Option *options) {
   }
 }
 
+void BoardFree(Board *b) {
+  free(b->id);
+  free(b->options_str);
+  free(b->userid);
+
+  for(Vote *v = b->votes; v!=NULL;){
+    Vote *n = v->next;
+    free(v->vote);
+    free(v->user);
+    free(v);
+    v = n;
+  }
+
+  for(Hash *h=b->votes_stats; h!=NULL;){
+    Hash *n = h->next;
+    free(n->key);
+    h = n;
+  }
+
+  HashFree(b->votes_stats);
+  BoardFreeOptions(b->options);
+}
+
 void BoardSetOptions(Board *board, char *options_str) {
-  if(options_str == NULL) return;
+  if (options_str == NULL)
+    return;
 
   board->options_str = strdup(options_str);
   Option *old_options = board->options;
@@ -259,14 +278,14 @@ void BoardSetOptions(Board *board, char *options_str) {
 
   Option *new_options = NULL;
   Option *last_option = NULL;
-  while(val != NULL && *val != 0) {
+  while (val != NULL && *val != 0) {
     Option *opt = calloc(1, sizeof(Option));
     opt->value = strdup(val);
     opt->next = NULL;
-    if(new_options== NULL) {
+    if (new_options == NULL) {
       new_options = opt;
     }
-    if(last_option!=NULL) {
+    if (last_option != NULL) {
       last_option->next = opt;
     }
     last_option = opt;
@@ -457,6 +476,7 @@ void GetBoardVoteHandler(Response *w, const Request *r) {
 
   CharConcatAndFree((char **)&w->body, views_header_html(NULL),
                     views_vote_html(board), views_footer_html(NULL), NULL);
+  w->freebody = true;
 }
 
 void PostBoardVoteHandler(Response *w, const Request *r) {
@@ -478,15 +498,39 @@ void PostBoardVoteHandler(Response *w, const Request *r) {
     return;
   }
 
-  char *vote = HashGet(r->params, "vote");
+  HashPrint(r->body);
+  char *vote = HashGet(r->body, "vote");
   if (vote == NULL) {
     Redirect(w, path);
     return;
   }
 
-  BoardVote(board, userid, vote);
+  // find the option and if not found don't proceed
+  Option *option;
+  for (option = board->options;
+       option != NULL && strcmp(vote, option->value) != 0;
+       option = option->next);
+  if (option == NULL){
+    Redirect(w, path);
+    return;
+  }
 
-  // TODO
+  // if vote already exists don't proceed
+  Vote *v = calloc(1, sizeof(Vote));
+  v->vote = strdup(vote);
+  v->user = strdup(userid);
+  v->next = board->votes;
+  board->votes = v;
+  board->votes_count++;
+
+  // update stats
+  Hash *stat = HashGet(board->votes_stats, vote);
+  if (stat == NULL) {
+    HashSet(&board->votes_stats, vote, (void *)1);
+    Redirect(w, path);
+    return;
+  }
+  stat->value++;
 }
 
 void GetBoardShowHandler(Response *w, const Request *r) {
@@ -695,6 +739,14 @@ int main(int argc, char **argv) {
       MHD_OPTION_NOTIFY_COMPLETED, &request_completed, NULL,
       MHD_OPTION_END);
   if (d == NULL) return 1;
+
+  for(Hash *h = boards; h!=NULL; h = h->next) {
+    free(h->key);
+    Board *b = h->value;
+    BoardFree(b);
+  }
+
+  HashFree(boards);
 
   printf("Server started on port %d\n", port);
   getc(stdin);
