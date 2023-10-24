@@ -57,6 +57,7 @@ void BoardVotesFree(Board *b) {
     free(v);
     v = n;
   }
+  b->votes = NULL;
   b->votes_count = 0;
 }
 
@@ -274,7 +275,7 @@ void BoardSetOptions(Board *board, char *options_str) {
   board->options_str = strdup(options_str);
   Option *old_options = board->options;
   char *saveptr;
-  char *val = strtok_r(options_str, "\n", &saveptr);
+  char *val = strtok_r(options_str, "\r\n", &saveptr);
 
   Option *new_options = NULL;
   Option *last_option = NULL;
@@ -290,7 +291,7 @@ void BoardSetOptions(Board *board, char *options_str) {
     }
     last_option = opt;
 
-    val = strtok_r(NULL, "\n", &saveptr);
+    val = strtok_r(NULL, "\r\n", &saveptr);
   }
 
   board->options = new_options;
@@ -459,6 +460,9 @@ void GetBoardResetHandler(Response *w, const Request *r) {
   }
 
   BoardVotesFree(board);
+  board->votes_count = 0;
+  HashFree(board->votes_stats);
+  board->votes_stats = NULL;
   board->hidden = true;
   BoardTouch(board);
 
@@ -494,13 +498,14 @@ void PostBoardVoteHandler(Response *w, const Request *r) {
   MemoryTrack(&w->memory, path);
 
   if (BoardUserVoted(board, userid)) {
+    WriteHeader(w, "X-Reason", "User already voted");
     Redirect(w, path);
     return;
   }
 
-  HashPrint(r->body);
   char *vote = HashGet(r->body, "vote");
   if (vote == NULL) {
+    WriteHeader(w, "X-Reason", "Vote parameter not found");
     Redirect(w, path);
     return;
   }
@@ -509,8 +514,10 @@ void PostBoardVoteHandler(Response *w, const Request *r) {
   Option *option;
   for (option = board->options;
        option != NULL && strcmp(vote, option->value) != 0;
-       option = option->next);
-  if (option == NULL){
+       option = option->next)
+    ;
+  if (option == NULL) {
+    WriteHeader(w, "X-Reason", "Vote option not found");
     Redirect(w, path);
     return;
   }
@@ -526,7 +533,7 @@ void PostBoardVoteHandler(Response *w, const Request *r) {
   // update stats
   Hash *stat = HashGet(board->votes_stats, vote);
   if (stat == NULL) {
-    HashSet(&board->votes_stats, vote, (void *)1);
+    HashSet(&board->votes_stats, strdup(vote), (void *)1);
     Redirect(w, path);
     return;
   }
@@ -534,15 +541,78 @@ void PostBoardVoteHandler(Response *w, const Request *r) {
 }
 
 void GetBoardShowHandler(Response *w, const Request *r) {
-  // TODO
+  UUID userid;
+  if ((userid = EnsureUser(w, r)) == NULL)
+    return;
+
+  Board *board;
+  if ((board = EnsureBoard(w, r)) == NULL)
+    return;
+
+  char *prefix = "/boards?board=";
+  char *path = calloc(1, sstrlen(board->id) + sstrlen(prefix) + 1);
+  sprintf(path, "%s%s", prefix, board->id);
+  MemoryTrack(&w->memory, path);
+
+  if (strcmp(board->userid, userid) != 0) {
+    Redirect(w, path);
+    return;
+  }
+
+  board->hidden = false;
+  BoardTouch(board);
+
+  Redirect(w, path);
 }
 
 void GetBoardHideHandler(Response *w, const Request *r) {
-  // TODO
+  UUID userid;
+  if ((userid = EnsureUser(w, r)) == NULL)
+    return;
+
+  Board *board;
+  if ((board = EnsureBoard(w, r)) == NULL)
+    return;
+
+  char *prefix = "/boards?board=";
+  char *path = calloc(1, sstrlen(board->id) + sstrlen(prefix) + 1);
+  sprintf(path, "%s%s", prefix, board->id);
+  MemoryTrack(&w->memory, path);
+
+  if (strcmp(board->userid, userid) != 0) {
+    Redirect(w, path);
+    return;
+  }
+
+  board->hidden = true;
+  BoardTouch(board);
+
+  Redirect(w, path);
 }
 
 void GetBoardCheckUpdateHandler(Response *w, const Request *r) {
-  // TODO
+  UUID userid;
+  if ((userid = EnsureUser(w, r)) == NULL)
+    return;
+
+  Board *board;
+  if ((board = EnsureBoard(w, r)) == NULL)
+    return;
+
+  char *updated_at = HashGet(r->params, "updated_at");
+  if( updated_at == NULL ) {
+    WriteHeader(w, "Refresh", "1");
+    return;
+  }
+
+  time_t updated_at_t = atol(updated_at);
+  printf("updated_at: %ld\n", updated_at_t);
+
+  if (updated_at_t < board->updated_at) {
+    w->body = "<script>top.location.reload()</script>";
+  }else{
+    WriteHeader(w, "Refresh", "1");
+  }
 }
 
 // Router
