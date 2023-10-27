@@ -194,7 +194,7 @@ UUID userid = page.user;
 	"              ");
 	StringWrite(w,  stat->key );
 	StringWrite(w, " <sub>×");
-	StringWrite(w,  intToChar(*(int*) stat->value) );
+	StringWrite(w,  longToChar((long) stat->value) );
 	StringWrite(w, "</sub>"
 	"            ");
 	 } 	StringWrite(w, ""

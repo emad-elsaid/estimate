@@ -33,7 +33,7 @@ UUID userid = page.user;
         🗳️ <%= intToChar(board->votes_count) %> Votes
         <% if(! board->hidden ){ %>
           | <% for(Hash *stat=board->votes_stats; stat != NULL; stat = stat->next){ %>
-              <%= stat->key %> <sub>×<%= intToChar(*(int*) stat->value) %></sub>
+              <%= stat->key %> <sub>×<%= longToChar((long) stat->value) %></sub>
             <% } %>
         <% } %>
       </h1>
