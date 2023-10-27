@@ -239,7 +239,7 @@ UUID userid = page.user;
 	""
 	"<iframe frameborder=\"0\" src=\"/boards/check?board=");
 	StringWrite(w,  board->id );
-	StringWrite(w, "&time=");
+	StringWrite(w, "&updated_at=");
 	StringWrite(w,  timeToChar(board->updated_at) );
 	StringWrite(w, "\" style=\"width:0;height:0;display:absolute;\"></iframe>"
 	"");

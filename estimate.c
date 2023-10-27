@@ -1,3 +1,4 @@
+#include <stdarg.h>
 #include <time.h>
 #include <microhttpd.h>
 #include <stdlib.h>
@@ -182,14 +183,27 @@ bool PathIs(const Request *r, const char *path) {
   return strcmp(r->path, path) == 0;
 }
 
-void Redirect(Response *w, char *path) {
+void Redirect(Response *w, char *path, ...) {
   // This list uses SEE OTHER instead of FOUND as POST requests responding with
   // FOUND means the path changes without method changes in most cases we want
   // to change the method to GET. and SEE OTHER does that
   // https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/302
   w->status = 303;
   w->body = "Found";
-  WriteHeader(w, "Location", path);
+
+  va_list ptr;
+  va_start(ptr, path);
+  size_t needed = vsnprintf(NULL, 0, path, ptr) + 1;
+  va_end(ptr);
+
+
+  va_start(ptr, path);
+  char *buffer = malloc(needed);
+  vsprintf(buffer, path, ptr);
+  va_end(ptr);
+
+  MemoryTrack(&w->memory, buffer);
+  WriteHeader(w, "Location", buffer);
 }
 
 UUID EnsureUser(Response *w, const Request *r) {
@@ -384,12 +398,7 @@ void PostBoardsHandler(Response *w, const Request *r) {
 
   HashSet(&boards, board->id, board);
 
-  char *prefix = "/boards?board=";
-  char *path = calloc(1, sstrlen(board->id) + sstrlen(prefix) + 1);
-  sprintf(path, "%s%s", prefix, board->id);
-  MemoryTrack(&w->memory, path);
-
-  Redirect(w, path);
+  Redirect(w, "/boards?board=%s", board->id);
 }
 
 void GetBoardEditHandler(Response *w, const Request *r) {
@@ -402,11 +411,7 @@ void GetBoardEditHandler(Response *w, const Request *r) {
     return;
 
   if (strcmp(board->userid, userid) != 0) {
-    char *prefix = "/boards?board=";
-    char *path = calloc(1, sstrlen(board->id) + sstrlen(prefix) + 1);
-    sprintf(path, "%s%s", prefix, board->id);
-    MemoryTrack(&w->memory, path);
-    Redirect(w, path);
+    Redirect(w, "/boards?board=%s", board->id);
     return;
   }
 
@@ -424,20 +429,15 @@ void PostBoardEditHandler(Response *w, const Request *r) {
   if ((board = EnsureBoard(w, r)) == NULL)
     return;
 
-  char *prefix = "/boards?board=";
-  char *path = calloc(1, sstrlen(board->id) + sstrlen(prefix) + 1);
-  sprintf(path, "%s%s", prefix, board->id);
-  MemoryTrack(&w->memory, path);
-
   if (strcmp(board->userid, userid) != 0) {
-    Redirect(w, path);
+    Redirect(w, "/boards?board=%s", board->id);
     return;
   }
 
   BoardSetOptions(board, HashGet(r->body, "options"));
   board->updated_at = time(NULL);
 
-  Redirect(w, path);
+  Redirect(w, "/boards?board=%s", board->id);
 }
 
 void GetBoardResetHandler(Response *w, const Request *r) {
@@ -449,13 +449,8 @@ void GetBoardResetHandler(Response *w, const Request *r) {
   if ((board = EnsureBoard(w, r)) == NULL)
     return;
 
-  char *prefix = "/boards?board=";
-  char *path = calloc(1, sstrlen(board->id) + sstrlen(prefix) + 1);
-  sprintf(path, "%s%s", prefix, board->id);
-  MemoryTrack(&w->memory, path);
-
   if (strcmp(board->userid, userid) != 0) {
-    Redirect(w, path);
+    Redirect(w, "/boards?board=%s", board->id);
     return;
   }
 
@@ -466,7 +461,7 @@ void GetBoardResetHandler(Response *w, const Request *r) {
   board->hidden = true;
   BoardTouch(board);
 
-  Redirect(w, path);
+  Redirect(w, "/boards?board=%s", board->id);
 }
 
 void GetBoardVoteHandler(Response *w, const Request *r) {
@@ -492,21 +487,16 @@ void PostBoardVoteHandler(Response *w, const Request *r) {
   if ((board = EnsureBoard(w, r)) == NULL)
     return;
 
-  char *prefix = "/boards?board=";
-  char *path = calloc(1, sstrlen(board->id) + sstrlen(prefix) + 1);
-  sprintf(path, "%s%s", prefix, board->id);
-  MemoryTrack(&w->memory, path);
-
   if (BoardUserVoted(board, userid)) {
     WriteHeader(w, "X-Reason", "User already voted");
-    Redirect(w, path);
+    Redirect(w, "/boards?board=%s", board->id);
     return;
   }
 
   char *vote = HashGet(r->body, "vote");
   if (vote == NULL) {
     WriteHeader(w, "X-Reason", "Vote parameter not found");
-    Redirect(w, path);
+    Redirect(w, "/boards?board=%s", board->id);
     return;
   }
 
@@ -518,7 +508,7 @@ void PostBoardVoteHandler(Response *w, const Request *r) {
     ;
   if (option == NULL) {
     WriteHeader(w, "X-Reason", "Vote option not found");
-    Redirect(w, path);
+    Redirect(w, "/boards?board=%s", board->id);
     return;
   }
 
@@ -534,7 +524,7 @@ void PostBoardVoteHandler(Response *w, const Request *r) {
   Hash *stat = HashGet(board->votes_stats, vote);
   if (stat == NULL) {
     HashSet(&board->votes_stats, strdup(vote), (void *)1);
-    Redirect(w, path);
+    Redirect(w, "/boards?board=%s", board->id);
     return;
   }
   stat->value++;
@@ -549,20 +539,15 @@ void GetBoardShowHandler(Response *w, const Request *r) {
   if ((board = EnsureBoard(w, r)) == NULL)
     return;
 
-  char *prefix = "/boards?board=";
-  char *path = calloc(1, sstrlen(board->id) + sstrlen(prefix) + 1);
-  sprintf(path, "%s%s", prefix, board->id);
-  MemoryTrack(&w->memory, path);
-
   if (strcmp(board->userid, userid) != 0) {
-    Redirect(w, path);
+    Redirect(w, "/boards?board=%s", board->id);
     return;
   }
 
   board->hidden = false;
   BoardTouch(board);
 
-  Redirect(w, path);
+  Redirect(w, "/boards?board=%s", board->id);
 }
 
 void GetBoardHideHandler(Response *w, const Request *r) {
@@ -574,20 +559,15 @@ void GetBoardHideHandler(Response *w, const Request *r) {
   if ((board = EnsureBoard(w, r)) == NULL)
     return;
 
-  char *prefix = "/boards?board=";
-  char *path = calloc(1, sstrlen(board->id) + sstrlen(prefix) + 1);
-  sprintf(path, "%s%s", prefix, board->id);
-  MemoryTrack(&w->memory, path);
-
   if (strcmp(board->userid, userid) != 0) {
-    Redirect(w, path);
+    Redirect(w, "/boards?board=%s", board->id);
     return;
   }
 
   board->hidden = true;
   BoardTouch(board);
 
-  Redirect(w, path);
+  Redirect(w, "/boards?board=%s", board->id);
 }
 
 void GetBoardCheckUpdateHandler(Response *w, const Request *r) {
