@@ -10,7 +10,7 @@
 #include <curl/easy.h>
 #include "estimate.h"
 #include "string.h"
-#include "./views_funcs.h"
+#include "views_funcs.h"
 
 // safe string functions
 int sstrlen(char *s) {
@@ -95,11 +95,13 @@ void CharConcatAndFree(char **dest, ...) {
   va_end(ptr);
 }
 
-void MemoryTrack(Memory **r, void *v) {
+// Add tracked memory v to the Memory list r and return value of v
+void *MemoryTrack(Memory **r, void *v) {
   Memory *m = malloc(sizeof(Memory));
   m->memory = v;
   m->next = *r;
   *r = m;
+  return v;
 }
 
 void MemoryFree(Memory *r) {
@@ -198,19 +200,17 @@ void Redirect(Response *w, char *path, ...) {
 
 
   va_start(ptr, path);
-  char *buffer = malloc(needed);
+  char *buffer = MemoryTrack(&w->memory, malloc(needed));
   vsprintf(buffer, path, ptr);
   va_end(ptr);
 
-  MemoryTrack(&w->memory, buffer);
   WriteHeader(w, "Location", buffer);
 }
 
 UUID EnsureUser(Response *w, const Request *r) {
   char *userid = HashGet(r->cookie, "userid");
   if( userid == NULL ) {
-    char *path = strdup(r->path);
-    MemoryTrack(&w->memory, path);
+    char *path = MemoryTrack(&w->memory, strdup(r->path));
 
     HashSet(&w->cookie, "back", path);
     Redirect(w, "/username");
@@ -243,11 +243,6 @@ UUID NewUUID() {
   char *str = malloc(UUID_STR_LEN);
   uuid_unparse_lower(uuid, str);
   return str;
-}
-
-char *ParamsGet(const Request *r, const char *key) {
-  // TODO get query parameter value for key
-  return NULL;
 }
 
 void BoardFreeOptions(Option *options) {
@@ -350,8 +345,7 @@ void GetUsernameHandler(Response *w, const Request *r) {
 void PostUsernameHandler(Response *w, const Request *r) {
   if (HashGet(r->cookie, "userid") == NULL) {
     HashSet(&w->cookie, "username", HashGet(r->body, "username"));
-    UUID userid = NewUUID();
-    MemoryTrack(&w->memory, userid);
+    UUID userid = MemoryTrack(&w->memory, NewUUID());
     HashSet(&w->cookie, "userid", userid);
   }
 
@@ -667,11 +661,8 @@ enum MHD_Result post_iterator(void *cls, enum MHD_ValueKind kind,
                               uint64_t off, size_t size) {
   Request *r = cls;
 
-  char *k = strdup(key);
-  MemoryTrack(&r->memory, k);
-
-  char *v = malloc(size + 1);
-  MemoryTrack(&r->memory, v);
+  char *k = MemoryTrack(&r->memory, strdup(key));
+  char *v = MemoryTrack(&r->memory, malloc(size + 1));
   memcpy(v, data, size);
   v[size] = 0;
 
@@ -684,11 +675,8 @@ enum MHD_Result value_iterator(void *cls, enum MHD_ValueKind kind,
                                 const char *key, const char *value) {
 
   Request *r = cls;
-  char *unserialized_value = CookieUnserialize(value);
-  MemoryTrack(&r->memory, unserialized_value);
-
-  char *k = strdup(key);
-  MemoryTrack(&r->memory, k);
+  char *unserialized_value = MemoryTrack(&r->memory, CookieUnserialize(value));
+  char *k = MemoryTrack(&r->memory, strdup(key));
 
   if( kind == MHD_COOKIE_KIND ) {
     HashSet(&r->cookie, k, unserialized_value);
@@ -774,8 +762,7 @@ static enum MHD_Result AccessCallback(void *cls, struct MHD_Connection *connecti
 
   // Set cookie
   for (Hash *h = w->cookie; h != NULL; h = h->next) {
-    char *cookie = CookieSerialize(h->key, h->value);
-    MemoryTrack(&w->memory, cookie);
+    char *cookie = MemoryTrack(&w->memory, CookieSerialize(h->key, h->value));
     MHD_add_response_header(response, MHD_HTTP_HEADER_SET_COOKIE, cookie);
   }
 
