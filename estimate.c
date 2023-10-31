@@ -595,10 +595,6 @@ void GetBoardCheckUpdateHandler(Response *w, const Request *r) {
   }
 }
 
-// Router
-// this is the main router, it inspects the request properties and calls the
-// correct handler function
-// ==============================================================================
 void Router(Response *w, const Request *r) {
   bool is_GET = r->method == METHOD_GET;
   bool is_POST = r->method == METHOD_POST;
@@ -626,27 +622,44 @@ void Router(Response *w, const Request *r) {
   w->body = "Page Not Found";
 }
 
-void Handler(Response *w, const Request *r) {
-  Router(w, r);
+// Middlewares ==========================================================
+typedef void (*Middleware)(Response *, const Request *);
 
+void SetNoContentMiddleware(Response *w, const Request *r) {
   if (w->status == 0) {
-    if ( w->body == NULL || *(char *)w->body == 0) {
+    if (w->body == NULL || *(char *)w->body == 0) {
       w->status = 204;
-    }else{
+    } else {
       w->status = 200; // no content
     }
   }
+}
 
-  if ( HashGet(w->headers, "Content-Type") == NULL )
+void SetHtmlContentMiddleware(Response *w, const Request *r) {
+  if (HashGet(w->headers, "Content-Type") == NULL)
     WriteHeader(w, "Content-Type", "text/html");
+}
 
+void LoggerMiddleware(Response *w, const Request *r) {
   printf("%d %s ... %d\n", r->method, r->path, w->status);
 }
 
+Middleware PreMiddleware[] = {};
+Middleware PostMiddleware[] = {SetNoContentMiddleware, SetHtmlContentMiddleware, LoggerMiddleware};
+
+void Handler(Response *w, const Request *r) {
+  for (int i = 0; i < sizeof(PreMiddleware) / sizeof(Middleware); i++)
+    PreMiddleware[i](w, r);
+
+  Router(w, r);
+
+  for (int i = 0; i < sizeof(PostMiddleware) / sizeof(Middleware); i++)
+    PostMiddleware[i](w, r);
+
+}
 
 // Setup to invoke router
 // ==================================================================
-
 enum MHD_Result post_iterator(void *cls, enum MHD_ValueKind kind,
                               const char *key, const char *filename,
                               const char *content_type,
