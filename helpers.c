@@ -52,7 +52,3 @@ char *longToChar(long i) {
 char *intToChar(int i) {
   return longToChar(i);
 }
-
-char *timeToChar(time_t t){
-  return ctime(&t);
-}

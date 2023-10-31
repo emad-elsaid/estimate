@@ -67,7 +67,7 @@ typedef struct Board {
   Vote *votes;
   int votes_count;
   Hash *votes_stats;
-  time_t updated_at;
+  char *updated_at;
 } Board;
 
 typedef struct BoardPage {

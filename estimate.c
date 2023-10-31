@@ -62,7 +62,17 @@ void BoardVotesFree(Board *b) {
   b->votes_count = 0;
 }
 
-void BoardTouch(Board *b) { b->updated_at = time(NULL); }
+void BoardTouch(Board *b) {
+  char *old = b->updated_at;
+  time_t t = time(NULL);
+  char *buffer = malloc(30);
+  sprintf(buffer, "%ld", t);
+  b->updated_at = buffer;
+
+  if( old != NULL ) {
+    free(old);
+  }
+}
 
 bool BoardUserVoted(Board *board, UUID userid) {
   for (Vote *v = board->votes; v != NULL; v = v->next)
@@ -258,6 +268,7 @@ void BoardFree(Board *b) {
   free(b->id);
   free(b->options_str);
   free(b->userid);
+  free(b->updated_at);
 
   for(Vote *v = b->votes; v!=NULL;){
     Vote *n = v->next;
@@ -388,7 +399,7 @@ void PostBoardsHandler(Response *w, const Request *r) {
   board->userid = strdup(userid);
   BoardSetOptions(board, HashGet(r->body, "options"));
   board->hidden = true;
-  board->updated_at = time(NULL);
+  BoardTouch(board);
 
   HashSet(&boards, board->id, board);
 
@@ -429,7 +440,7 @@ void PostBoardEditHandler(Response *w, const Request *r) {
   }
 
   BoardSetOptions(board, HashGet(r->body, "options"));
-  board->updated_at = time(NULL);
+  BoardTouch(board);
 
   Redirect(w, "/boards?board=%s", board->id);
 }
@@ -579,13 +590,11 @@ void GetBoardCheckUpdateHandler(Response *w, const Request *r) {
     return;
   }
 
-  time_t updated_at_t = atol(updated_at);
-  printf("updated_at: %ld\n", updated_at_t);
-
-  if (updated_at_t < board->updated_at) {
-    w->body = "<script>top.location.reload()</script>";
+  if ( strcmp(updated_at, board->updated_at) == 0 ) {
+    WriteHeader(w, "Refresh", "1"); // didn't change, refresh in 1 second
+    w->status = 200;
   }else{
-    WriteHeader(w, "Refresh", "1");
+    w->body = "<script>top.location.reload()</script>";
   }
 }
 
@@ -630,7 +639,7 @@ void SetNoContentMiddleware(Response *w, const Request *r) {
 }
 
 void SetHtmlContentMiddleware(Response *w, const Request *r) {
-  if (HashGet(w->headers, "Content-Type") == NULL)
+  if (w->status == 0 && HashGet(w->headers, "Content-Type") == NULL)
     WriteHeader(w, "Content-Type", "text/html");
 }
 
