@@ -46,11 +46,13 @@ UUID userid = page.user;
             <div class="card-content has-text-centered">
               <div class="title" style="font-size: 9em;<%= (board->hidden)? "filter: blur(1rem);" : "" %>">
                 <% if(board->hidden){ %>
-                  X
+                X
                 <% }else{ %>
-                  <%= h(vote->vote) %>
+                <!-- This leaks memory -->
+                <%= h(vote->vote) %>
                 <% } %>
               </div>
+              <!-- This leaks memory -->
               <div class="subtitle"> <%= h(userid) %> </div>
             </div>
           </div>
