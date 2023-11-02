@@ -2,6 +2,7 @@
 #include "./string.h"
 char *views_vote_html(void *input) {
 	String *w = StringNew(NULL);
+	char *s;
 	 Board *board = input; 	StringWrite(w, ""
 	"<section class=\"section\">"
 	"  <div class=\"container\">"
@@ -42,6 +43,7 @@ char *views_vote_html(void *input) {
 }
 char *views_header_html(void *input) {
 	String *w = StringNew(NULL);
+	char *s;
 	StringWrite(w, "<!DOCTYPE html>"
 	"<html>"
 	"  <head>"
@@ -58,6 +60,7 @@ char *views_header_html(void *input) {
 }
 char *views_board_html(void *input) {
 	String *w = StringNew(NULL);
+	char *s;
 	
 BoardPage page = *(BoardPage *)input;
 Board *board = page.board;
@@ -143,16 +146,18 @@ UUID userid = page.user;
 	"                X"
 	"                ");
 	 }else{ 	StringWrite(w, ""
-	"                <!-- This leaks memory -->"
 	"                ");
-	StringWrite(w,  h(vote->vote) );
+	s =  h(vote->vote) ;
+StringWrite(w, s);
+free(s);
 	StringWrite(w, ""
 	"                ");
 	 } 	StringWrite(w, ""
 	"              </div>"
-	"              <!-- This leaks memory -->"
 	"              <div class=\"subtitle\"> ");
-	StringWrite(w,  h(userid) );
+	s =  h(userid) ;
+StringWrite(w, s);
+free(s);
 	StringWrite(w, " </div>"
 	"            </div>"
 	"          </div>"
@@ -176,6 +181,7 @@ UUID userid = page.user;
 }
 char *views_index_html(void *input) {
 	String *w = StringNew(NULL);
+	char *s;
 	 Board *board = input; 	StringWrite(w, ""
 	"<section class=\"section\">"
 	"  <div class=\"container\">"
@@ -217,6 +223,7 @@ char *views_index_html(void *input) {
 }
 char *views_username_html(void *input) {
 	String *w = StringNew(NULL);
+	char *s;
 	StringWrite(w, "<section class=\"section\">"
 	"  <div class=\"container\">"
 	"    <form action=\"/username\" method=\"POST\">"
@@ -242,6 +249,7 @@ char *views_username_html(void *input) {
 }
 char *views_footer_html(void *input) {
 	String *w = StringNew(NULL);
+	char *s;
 	StringWrite(w, "  </body>"
 	"</html>"
 	"");

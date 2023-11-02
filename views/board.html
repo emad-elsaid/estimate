@@ -48,12 +48,10 @@ UUID userid = page.user;
                 <% if(board->hidden){ %>
                 X
                 <% }else{ %>
-                <!-- This leaks memory -->
-                <%= h(vote->vote) %>
+                <%- h(vote->vote) %>
                 <% } %>
               </div>
-              <!-- This leaks memory -->
-              <div class="subtitle"> <%= h(userid) %> </div>
+              <div class="subtitle"> <%- h(userid) %> </div>
             </div>
           </div>
         </div>

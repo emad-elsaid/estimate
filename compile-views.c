@@ -46,7 +46,20 @@ void printEval(FILE *src, char *start, char *end) {
   fprintf(src, ");\n");
 }
 
-void printFromTo(FILE *src, char *start, char *end) {
+void printEvalAndFree(FILE *src, char *start, char *end) {
+  if (start == end)
+    return;
+
+  fprintf(src, "\ts = ");
+  while (start != end && *start != 0) {
+    fprintf(src, "%c", *start);
+    start++;
+  }
+  fprintf(src, ";\nStringWrite(w, s);\nfree(s);\n");
+}
+
+    void
+    printFromTo(FILE *src, char *start, char *end) {
   if (start == end)
     return;
 
@@ -96,6 +109,8 @@ void convertContent(FILE *src, char *content) {
     char *nextClose = moveToEnd(offset);
     if(*offset == '='){
       printEval(src, offset+1, nextClose);
+    }else if( *offset == '-') {
+      printEvalAndFree(src, offset+1, nextClose);
     }else{
       printFromTo(src, offset, nextClose);
     }
@@ -138,6 +153,7 @@ void processFile(FILE *header, FILE *src, char *f) {
   fprintf(header, "char *%s(void *);\n", funcName);
   fprintf(src, "char *%s(void *input) {\n", funcName);
   fprintf(src, "\tString *w = StringNew(NULL);\n");
+  fprintf(src, "\tchar *s;\n"); // to hold strings that will be freed later
   free(funcName);
 
   convertContent(src, content);

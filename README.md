@@ -36,5 +36,6 @@ make run
 - templates are html files in `views` directory
 - C code between `<%` and `%>` will be executed
 - C code between `<%=` and `%>` will be executed and is expected to return a C string `char *` which will be printed
+- C code between `<%-` and `%>` is similar to `<%=` and `%>` and will free the string memory
 - every view file will be compiled to a C function with the name `views_<ile_name>_html`
 - every view function takes `void *input` argument and returns `char *`
