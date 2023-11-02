@@ -30,3 +30,11 @@ make run
 - No persistent data
 - No Javascript (one line to refresh board when updated)
 - Minimal dependencies
+
+## Templates syntax
+
+- templates are html files in `views` directory
+- C code between `<%` and `%>` will be executed
+- C code between `<%=` and `%>` will be executed and is expected to return a C string `char *` which will be printed
+- every view file will be compiled to a C function with the name `views_<ile_name>_html`
+- every view function takes `void *input` argument and returns `char *`
