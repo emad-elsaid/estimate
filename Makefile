@@ -1,5 +1,5 @@
 LDFLAGS=`pkg-config --libs --cflags --static libmicrohttpd uuid libcurl`
-CCFLAGS = -Wextra -Wall $LDFLAGS
+CCFLAGS = -Wextra -Wall -g $LDFLAGS
 
 .PHONY: run, run-test, install, clean
 
