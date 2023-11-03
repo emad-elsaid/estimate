@@ -1,5 +1,100 @@
 #include "views_includes.h"
 #include "./string.h"
+char *views_username_html(void *input) {
+	String *w = StringNew(NULL);
+	char *s;
+	StringWrite(w, "<section class=\"section\">"
+	"  <div class=\"container\">"
+	"    <form action=\"/username\" method=\"POST\">"
+	"      <div class=\"field\">"
+	"        <label class=\"label\" for=\"username\">Your name</label>"
+	"        <div class=\"control is-fullwidth\">"
+	"          <input class=\"input\" type=\"text\" placeholder=\"Your name...\" name=\"username\" id=\"username\" autofocus>"
+	"        </div>"
+	"      </div>"
+	""
+	"      <div class=\"field\">"
+	"        <div class=\"control\">"
+	"          <button class=\"button is-link\" type=\"submit\">Set name</button>"
+	"        </div>"
+	"      </div>"
+	"    </form>"
+	"  </div>"
+	"</section>"
+	"");
+	char *ret = w->value;
+	free(w);
+	return ret;
+}
+char *views_header_html(void *input) {
+	String *w = StringNew(NULL);
+	char *s;
+	StringWrite(w, "<!DOCTYPE html>"
+	"<html>"
+	"  <head>"
+	"    <meta charset=\"utf-8\">"
+	"    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">"
+	"    <title>Estimate</title>"
+	"    <link rel=\"stylesheet\" href=\"https://cdn.jsdelivr.net/npm/bulma@0.9.2/css/bulma.min.css\">"
+	"  </head>"
+	"  <body>"
+	"");
+	char *ret = w->value;
+	free(w);
+	return ret;
+}
+char *views_index_html(void *input) {
+	String *w = StringNew(NULL);
+	char *s;
+	 Board *board = input; 	StringWrite(w, ""
+	"<section class=\"section\">"
+	"  <div class=\"container\">"
+	""
+	"    ");
+	 if( board->id ){ 	StringWrite(w, ""
+	"    <form action=\"/boards/edit?board=");
+	StringWrite(w,  board->id );
+	StringWrite(w, "\" method=\"POST\">"
+	"    ");
+	 }else{ 	StringWrite(w, ""
+	"    <form action=\"/boards\" method=\"POST\">"
+	"    ");
+	 } 	StringWrite(w, ""
+	""
+	"      <div class=\"field\">"
+	"        <label class=\"label\" for=\"columns\">Options</label>"
+	"        <div class=\"control\">"
+	"          <textarea class=\"textarea\" placeholder=\"Each line an option...\" name=\"options\" id=\"columns\" autofocus>");
+	StringWrite(w,  board->options_str );
+	StringWrite(w, "</textarea>"
+	"        </div>"
+	"      </div>"
+	""
+	"      <div class=\"field\">"
+	"        <div class=\"control\">"
+	"          <button class=\"button is-link\" type=\"submit\">Create</button>"
+	"        </div>"
+	"      </div>"
+	""
+	"    </form>"
+	""
+	"  </div>"
+	"</section>"
+	"");
+	char *ret = w->value;
+	free(w);
+	return ret;
+}
+char *views_footer_html(void *input) {
+	String *w = StringNew(NULL);
+	char *s;
+	StringWrite(w, "  </body>"
+	"</html>"
+	"");
+	char *ret = w->value;
+	free(w);
+	return ret;
+}
 char *views_vote_html(void *input) {
 	String *w = StringNew(NULL);
 	char *s;
@@ -36,23 +131,6 @@ char *views_vote_html(void *input) {
 	"    </div>"
 	"  </div>"
 	"</section>"
-	"");
-	char *ret = w->value;
-	free(w);
-	return ret;
-}
-char *views_header_html(void *input) {
-	String *w = StringNew(NULL);
-	char *s;
-	StringWrite(w, "<!DOCTYPE html>"
-	"<html>"
-	"  <head>"
-	"    <meta charset=\"utf-8\">"
-	"    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">"
-	"    <title>Estimate</title>"
-	"    <link rel=\"stylesheet\" href=\"https://cdn.jsdelivr.net/npm/bulma@0.9.2/css/bulma.min.css\">"
-	"  </head>"
-	"  <body>"
 	"");
 	char *ret = w->value;
 	free(w);
@@ -174,84 +252,6 @@ free(s);
 	StringWrite(w, "&updated_at=");
 	StringWrite(w,  board->updated_at );
 	StringWrite(w, "\" style=\"width:0;height:0;display:absolute;\"></iframe>"
-	"");
-	char *ret = w->value;
-	free(w);
-	return ret;
-}
-char *views_index_html(void *input) {
-	String *w = StringNew(NULL);
-	char *s;
-	 Board *board = input; 	StringWrite(w, ""
-	"<section class=\"section\">"
-	"  <div class=\"container\">"
-	""
-	"    ");
-	 if( board->id ){ 	StringWrite(w, ""
-	"    <form action=\"/boards/edit?board=");
-	StringWrite(w,  board->id );
-	StringWrite(w, "\" method=\"POST\">"
-	"    ");
-	 }else{ 	StringWrite(w, ""
-	"    <form action=\"/boards\" method=\"POST\">"
-	"    ");
-	 } 	StringWrite(w, ""
-	""
-	"      <div class=\"field\">"
-	"        <label class=\"label\" for=\"columns\">Options</label>"
-	"        <div class=\"control\">"
-	"          <textarea class=\"textarea\" placeholder=\"Each line an option...\" name=\"options\" id=\"columns\" autofocus>");
-	StringWrite(w,  board->options_str );
-	StringWrite(w, "</textarea>"
-	"        </div>"
-	"      </div>"
-	""
-	"      <div class=\"field\">"
-	"        <div class=\"control\">"
-	"          <button class=\"button is-link\" type=\"submit\">Create</button>"
-	"        </div>"
-	"      </div>"
-	""
-	"    </form>"
-	""
-	"  </div>"
-	"</section>"
-	"");
-	char *ret = w->value;
-	free(w);
-	return ret;
-}
-char *views_username_html(void *input) {
-	String *w = StringNew(NULL);
-	char *s;
-	StringWrite(w, "<section class=\"section\">"
-	"  <div class=\"container\">"
-	"    <form action=\"/username\" method=\"POST\">"
-	"      <div class=\"field\">"
-	"        <label class=\"label\" for=\"username\">Your name</label>"
-	"        <div class=\"control is-fullwidth\">"
-	"          <input class=\"input\" type=\"text\" placeholder=\"Your name...\" name=\"username\" id=\"username\" autofocus>"
-	"        </div>"
-	"      </div>"
-	""
-	"      <div class=\"field\">"
-	"        <div class=\"control\">"
-	"          <button class=\"button is-link\" type=\"submit\">Set name</button>"
-	"        </div>"
-	"      </div>"
-	"    </form>"
-	"  </div>"
-	"</section>"
-	"");
-	char *ret = w->value;
-	free(w);
-	return ret;
-}
-char *views_footer_html(void *input) {
-	String *w = StringNew(NULL);
-	char *s;
-	StringWrite(w, "  </body>"
-	"</html>"
 	"");
 	char *ret = w->value;
 	free(w);

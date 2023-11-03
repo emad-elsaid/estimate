@@ -6,6 +6,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define OUTPUT_HEADER "views.h"
+#define OUTPUT_SRC "views.c"
 #define TEMPLATE_START "<%"
 #define TEMPLATE_END "%>"
 
@@ -169,8 +171,8 @@ void processDir(char *dir) {
     return;
   }
 
-  FILE *header = fopen("views_funcs.h", "w");
-  FILE *src = fopen("views_funcs.c", "w");
+  FILE *header = fopen(OUTPUT_HEADER, "w");
+  FILE *src = fopen(OUTPUT_SRC, "w");
 
   char filename_qfd[100];
   struct dirent *dp;

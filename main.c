@@ -1,3 +1,8 @@
+#include "main.h"
+#include "string.h"
+#include "views.h"
+#include "models.h"
+#include "hash.h"
 #include <stdarg.h>
 #include <time.h>
 #include <microhttpd.h>
@@ -8,9 +13,6 @@
 #include <uuid/uuid.h>
 #include <curl/curl.h>
 #include <curl/easy.h>
-#include "estimate.h"
-#include "string.h"
-#include "views_funcs.h"
 
 // safe string functions
 int sstrlen(char *s) {
@@ -18,69 +20,7 @@ int sstrlen(char *s) {
   return strlen(s);
 }
 
-void HashSet(Hash **r, char *key, void *value) {
-  Hash *h = malloc(sizeof(Hash));
-  h->key = key;
-  h->value = value;
-  h->next = *r;
-  *r = h;
-}
-
-void *HashGet(Hash *r, void *key) {
-  for (Hash *c = r; c != NULL; c = c->next) {
-    if (strcmp(c->key, key) == 0)
-      return c->value;
-  }
-
-  return NULL;
-}
-
-void HashPrint(Hash *r) {
-  for (Hash *c = r; c != NULL; c = c->next)
-    printf("%s -> %s\n", c->key, (char *) c->value);
-}
-
-void HashFree(Hash *r) {
-  for (Hash *c = r; c != NULL;) {
-    Hash *n = c->next;
-    free(c);
-    c = n;
-  }
-}
-
 Hash *boards = NULL;
-
-void BoardVotesFree(Board *b) {
-  for(Vote *v = b->votes; v != NULL;) {
-    Vote *n = v->next;
-    free(v->vote);
-    free(v->user);
-    free(v);
-    v = n;
-  }
-  b->votes = NULL;
-  b->votes_count = 0;
-}
-
-void BoardTouch(Board *b) {
-  char *old = b->updated_at;
-  time_t t = time(NULL);
-  char *buffer = malloc(30);
-  sprintf(buffer, "%ld", t);
-  b->updated_at = buffer;
-
-  if( old != NULL ) {
-    free(old);
-  }
-}
-
-bool BoardUserVoted(Board *board, UUID userid) {
-  for (Vote *v = board->votes; v != NULL; v = v->next)
-    if (strcmp(v->user, userid) == 0)
-      return true;
-
-  return false;
-}
 
 void CharConcatAndFree(char **dest, ...) {
   va_list ptr;
