@@ -35,3 +35,6 @@ typedef struct BoardPage {
 void BoardVotesFree(Board *b);
 void BoardTouch(Board *b);
 bool BoardUserVoted(Board *board, UUID userid);
+void BoardFreeOptions(Option *options);
+void BoardFree(Board *b);
+void BoardSetOptions(Board *board, char *options_str);
