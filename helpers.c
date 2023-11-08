@@ -13,7 +13,7 @@ char *h(char *input) {
   }
 
   int to_increase = to_escape * 3; // each encoding increase string length by 3
-  int new_length = length + to_escape;
+  int new_length = length + to_increase;
 
   char *out = (char *)calloc(1, new_length + 1);
   for (char *c = input, *d = out; *c != 0; c++,d++) {
