@@ -174,7 +174,6 @@ void processDir(char *dir) {
   FILE *header = fopen(OUTPUT_HEADER, "w");
   FILE *src = fopen(OUTPUT_SRC, "w");
 
-  char filename_qfd[100];
   struct dirent *dp;
 
   fprintf(header, "#include \"./string.h\"\n");
@@ -182,17 +181,22 @@ void processDir(char *dir) {
 
   while ((dp = readdir(dfd)) != NULL) {
     struct stat stbuf;
+    char *filename_qfd = calloc(1, strlen(dir) + strlen(dp->d_name) + 2);
     sprintf(filename_qfd, "%s/%s", dir, dp->d_name);
     if (stat(filename_qfd, &stbuf) == -1) {
       printf("Unable to stat file: %s\n", filename_qfd);
+      free(filename_qfd);
       continue;
     }
 
     if ((stbuf.st_mode & S_IFMT) == S_IFDIR) {
+      free(filename_qfd);
       continue;
     } else {
       processFile(header, src, filename_qfd);
     }
+
+    free(filename_qfd);
   }
 
   fclose(header);
