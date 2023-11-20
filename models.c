@@ -9,6 +9,7 @@ void BoardVotesFree(Board *b) {
     Vote *n = v->next;
     free(v->vote);
     free(v->user);
+    free(v->username);
     free(v);
     v = n;
   }

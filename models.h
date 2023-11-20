@@ -6,6 +6,7 @@ typedef char *UUID;
 
 typedef struct Vote {
   UUID user;
+  char *username;
   char *vote;
   struct Vote *next;
 } Vote;

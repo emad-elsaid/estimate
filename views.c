@@ -233,7 +233,7 @@ free(s);
 	 } 	StringWrite(w, ""
 	"              </div>"
 	"              <div class=\"subtitle\"> ");
-	s =  h(userid) ;
+	s =  h(vote->username) ;
 StringWrite(w, s);
 free(s);
 	StringWrite(w, " </div>"

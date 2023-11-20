@@ -365,6 +365,13 @@ void PostBoardVoteHandler(Response *w, const Request *r) {
   if ((userid = EnsureUser(w, r)) == NULL)
     return;
 
+  char *username = HashGet(r->cookie, "username");
+  if(username == NULL) {
+    WriteHeader(w, "X-Reason", "Can't get username");
+    Redirect(w, "/username");
+    return;
+  }
+
   Board *board;
   if ((board = EnsureBoard(w, r)) == NULL)
     return;
@@ -398,6 +405,7 @@ void PostBoardVoteHandler(Response *w, const Request *r) {
   Vote *v = calloc(1, sizeof(Vote));
   v->vote = strdup(vote);
   v->user = strdup(userid);
+  v->username = strdup(username);
   v->next = board->votes;
   board->votes = v;
   board->votes_count++;
