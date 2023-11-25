@@ -80,10 +80,8 @@ void ResponseFree(Response *w) {
 
 char *CookieSerialize(char *key, char *value) {
   char *escaped_value = curl_easy_escape(NULL, value, 0);
-
-  int size = sstrlen(key)+1+sstrlen(escaped_value)+1; // key + = + value + \0
-  char *s = malloc(size);
-  sprintf(s, "%s=%s", key, escaped_value);
+  char *s;
+  asprintf(&s, "%s=%s", key, escaped_value);
 
   curl_free(escaped_value);
 
@@ -148,7 +146,6 @@ void Redirect(Response *w, char *path, ...) {
   size_t needed = vsnprintf(NULL, 0, path, ptr) + 1;
   va_end(ptr);
 
-
   va_start(ptr, path);
   char *buffer = MemoryTrack(&w->memory, malloc(needed));
   vsprintf(buffer, path, ptr);
@@ -159,16 +156,24 @@ void Redirect(Response *w, char *path, ...) {
 
 UUID EnsureUser(Response *w, const Request *r) {
   char *userid = HashGet(r->cookie, "userid");
-  if( userid == NULL ) {
-    char *path = MemoryTrack(&w->memory, strdup(r->path));
-
-    HashSet(&w->cookie, "back", path);
-    Redirect(w, "/username");
-
-    return NULL;
+  if( userid != NULL ) {
+    return userid;
   }
 
-  return userid;
+  char *path = MemoryTrack(&w->memory, strdup(r->path));
+  char *board = HashGet(r->params, "board");
+
+  if( board != NULL ) {
+    char *pathWithParam;
+    asprintf(&pathWithParam, "%s?board=%s", path, board);
+    MemoryTrack(&w->memory, pathWithParam);
+    path = pathWithParam;
+  }
+
+  HashSet(&w->cookie, "back", path);
+  Redirect(w, "/username");
+
+  return NULL;
 }
 
 Board *EnsureBoard(Response *w, const Request *r) {
